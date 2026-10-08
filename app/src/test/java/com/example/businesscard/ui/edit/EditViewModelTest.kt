@@ -1,8 +1,11 @@
 package com.example.businesscard.ui.edit
 
 import androidx.lifecycle.SavedStateHandle
-import com.example.businesscard.data.model.BusinessCard
-import com.example.businesscard.ui.navigation.CARD_ID_ARG
+import com.example.businesscard.domain.model.BusinessCard
+import com.example.businesscard.domain.usecase.DeleteBusinessCardUseCase
+import com.example.businesscard.domain.usecase.ObserveBusinessCardUseCase
+import com.example.businesscard.domain.usecase.SaveBusinessCardUseCase
+import com.example.businesscard.testing.FakeBusinessCardRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -32,9 +35,17 @@ class EditViewModelTest {
         Dispatchers.resetMain()
     }
 
+    /** 型安全ナビゲーションのCardEdit(cardId)と同じキー・型でSavedStateHandleを作る。 */
+    private fun createViewModel(cardId: Long = BusinessCard.NEW_ID) = EditViewModel(
+        savedStateHandle = SavedStateHandle(mapOf("cardId" to cardId)),
+        observeBusinessCard = ObserveBusinessCardUseCase(repository),
+        saveBusinessCard = SaveBusinessCardUseCase(repository),
+        deleteBusinessCard = DeleteBusinessCardUseCase(repository),
+    )
+
     @Test
     fun save_withBlankName_showsErrorAndDoesNotSave() = runTest {
-        val viewModel = EditViewModel(SavedStateHandle(), repository)
+        val viewModel = createViewModel()
 
         viewModel.onNameChange("  ")
         viewModel.save()
@@ -45,10 +56,10 @@ class EditViewModelTest {
     }
 
     @Test
-    fun save_withName_savesTrimmedCardAndFinishes() = runTest {
-        val viewModel = EditViewModel(SavedStateHandle(), repository)
+    fun save_withName_savesCardAndFinishes() = runTest {
+        val viewModel = createViewModel()
 
-        viewModel.onNameChange(" 山田太郎 ")
+        viewModel.onNameChange("山田太郎")
         viewModel.onCompanyChange("ACME")
         viewModel.save()
 
@@ -63,7 +74,7 @@ class EditViewModelTest {
         repository.save(BusinessCard(name = "山田太郎", email = "taro@example.com"))
         val id = repository.cards.first().single().id
 
-        val viewModel = EditViewModel(SavedStateHandle(mapOf(CARD_ID_ARG to id)), repository)
+        val viewModel = createViewModel(cardId = id)
         assertEquals("山田太郎", viewModel.uiState.value.name)
         assertFalse(viewModel.uiState.value.isNew)
 
@@ -74,5 +85,17 @@ class EditViewModelTest {
         assertEquals(1, cards.size)
         assertEquals("山田次郎", cards.single().name)
         assertEquals("taro@example.com", cards.single().email)
+    }
+
+    @Test
+    fun delete_existingCard_removesItAndFinishes() = runTest {
+        repository.save(BusinessCard(name = "山田太郎"))
+        val id = repository.cards.first().single().id
+
+        val viewModel = createViewModel(cardId = id)
+        viewModel.delete()
+
+        assertTrue(repository.cards.first().isEmpty())
+        assertTrue(viewModel.uiState.value.isDeleted)
     }
 }

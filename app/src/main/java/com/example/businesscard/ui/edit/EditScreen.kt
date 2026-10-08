@@ -22,9 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.businesscard.R
-import com.example.businesscard.ui.AppViewModelProvider
 import com.example.businesscard.ui.component.GlassButton
 import com.example.businesscard.ui.component.GlassConfirmDialog
 import com.example.businesscard.ui.component.GlassIconButton
@@ -38,7 +37,7 @@ fun EditRoute(
     onBack: () -> Unit,
     onSaved: () -> Unit,
     onDeleted: () -> Unit,
-    viewModel: EditViewModel = viewModel(factory = AppViewModelProvider.Factory),
+    viewModel: EditViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

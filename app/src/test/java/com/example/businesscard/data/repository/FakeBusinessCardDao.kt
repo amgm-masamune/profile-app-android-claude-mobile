@@ -1,4 +1,4 @@
-package com.example.businesscard.data
+package com.example.businesscard.data.repository
 
 import com.example.businesscard.data.local.BusinessCardDao
 import com.example.businesscard.data.local.BusinessCardEntity

@@ -20,9 +20,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.businesscard.R
-import com.example.businesscard.ui.AppViewModelProvider
 import com.example.businesscard.ui.component.BusinessCardView
 import com.example.businesscard.ui.component.GlassButton
 import com.example.businesscard.ui.component.SoftGlassScaffold
@@ -36,7 +35,7 @@ import com.example.businesscard.ui.theme.SoftGlassTheme
 fun ListRoute(
     onAddClick: () -> Unit,
     onCardClick: (Long) -> Unit,
-    viewModel: BusinessCardListViewModel = viewModel(factory = AppViewModelProvider.Factory),
+    viewModel: BusinessCardListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     ListScreen(uiState = uiState, onAddClick = onAddClick, onCardClick = onCardClick)

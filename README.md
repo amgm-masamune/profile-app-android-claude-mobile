@@ -9,19 +9,40 @@ Android公式の推奨アーキテクチャを学ぶための、いちばんシ�
 
 ## アーキテクチャ
 
+Android公式の推奨アーキテクチャ(UI層 / ドメイン層 / データ層)に沿って、単一モジュール内をパッケージで明示的に分ける。依存の向きは `ui → domain ← data`(domainは何にも依存しない)。
+
 ```
-UI層   (Composable) ──events──▶ ViewModel (StateFlowでUiStateを公開)
-                                   │
-データ層                      Repository (interface / OfflineFirst実装)
-                                   │
-                               Room (Dao / Entity)
+ui (Composable / ViewModel)
+        │ 呼ぶ
+        ▼
+domain (model / Repositoryインタフェース / UseCase)   ← 業務ルール(氏名必須、空白除去)
+        ▲ 実装する
+        │
+data (Room: Dao・Entity / mapper / Repository実装)
 ```
 
-- 単方向データフロー: 状態は下へ、イベントは上へ
-- `data/` : モデル、Room、Repository
-- `ui/`   : 画面ごとに `*Screen.kt`(状態を受け取るだけ)と `*ViewModel.kt`
-- DIは `BusinessCardApplication` の `AppContainer` による手動DI(Hiltなし)
-- ViewModelの生成は `AppViewModelProvider` に集約
+```
+com.example.businesscard
+├─ BusinessCardApplication.kt   @HiltAndroidApp
+├─ MainActivity.kt              @AndroidEntryPoint
+├─ di/                          Hiltモジュール(DatabaseModule, RepositoryModule)
+├─ domain/                      純粋なKotlin(Android非依存)
+│  ├─ model/                    BusinessCard
+│  ├─ repository/               BusinessCardRepository(インタフェース)
+│  └─ usecase/                  Observe(s) / Save / Delete
+├─ data/
+│  ├─ local/                    AppDatabase, BusinessCardDao, BusinessCardEntity
+│  ├─ mapper/                   Entity <-> Domain変換
+│  └─ repository/               OfflineFirstBusinessCardRepository(実装)
+└─ ui/
+   ├─ navigation/               型安全ナビゲーション(Destinations, AppNavHost)
+   ├─ list/ detail/ edit/       画面ごとに *Screen.kt と *ViewModel.kt
+   ├─ component/ theme/         共通部品・デザイントークン
+```
+
+- 単方向データフロー: 状態(UiState)は下へ、イベントは上へ
+- DI: Hilt。ViewModelは `@HiltViewModel`、RepositoryはインタフェースをBindsで実装に結びつける
+- ナビゲーション: Navigation Compose の型安全API(`@Serializable` な遷移先 + `toRoute`)
 
 ## デザイン
 

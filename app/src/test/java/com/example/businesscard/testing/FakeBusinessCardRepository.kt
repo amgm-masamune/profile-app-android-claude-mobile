@@ -1,7 +1,7 @@
-package com.example.businesscard.ui.edit
+package com.example.businesscard.testing
 
-import com.example.businesscard.data.BusinessCardRepository
-import com.example.businesscard.data.model.BusinessCard
+import com.example.businesscard.domain.repository.BusinessCardRepository
+import com.example.businesscard.domain.model.BusinessCard
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map

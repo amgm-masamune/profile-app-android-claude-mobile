@@ -25,9 +25,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.businesscard.R
-import com.example.businesscard.ui.AppViewModelProvider
 import com.example.businesscard.ui.component.BusinessCardView
 import com.example.businesscard.ui.component.GlassIconButton
 import com.example.businesscard.ui.component.SoftGlassBackground
@@ -36,7 +35,7 @@ import com.example.businesscard.ui.component.SoftGlassBackground
 fun DetailRoute(
     onBack: () -> Unit,
     onEdit: (Long) -> Unit,
-    viewModel: DetailViewModel = viewModel(factory = AppViewModelProvider.Factory),
+    viewModel: DetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     DetailScreen(

@@ -19,7 +19,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.businesscard.data.model.BusinessCard
+import com.example.businesscard.domain.model.BusinessCard
 import com.example.businesscard.ui.theme.SoftGlassShapes
 import com.example.businesscard.ui.theme.SoftGlassTheme
 

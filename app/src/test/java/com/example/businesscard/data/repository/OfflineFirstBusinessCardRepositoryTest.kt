@@ -1,6 +1,6 @@
-package com.example.businesscard.data
+package com.example.businesscard.data.repository
 
-import com.example.businesscard.data.model.BusinessCard
+import com.example.businesscard.domain.model.BusinessCard
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals

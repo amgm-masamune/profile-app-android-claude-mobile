@@ -3,16 +3,21 @@ package com.example.businesscard.ui.edit
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.businesscard.data.BusinessCardRepository
-import com.example.businesscard.data.model.BusinessCard
-import com.example.businesscard.ui.navigation.CARD_ID_ARG
-import com.example.businesscard.ui.navigation.NEW_CARD_ID
+import androidx.navigation.toRoute
+import com.example.businesscard.domain.model.BusinessCard
+import com.example.businesscard.domain.usecase.DeleteBusinessCardUseCase
+import com.example.businesscard.domain.usecase.ObserveBusinessCardUseCase
+import com.example.businesscard.domain.usecase.SaveBusinessCardResult
+import com.example.businesscard.domain.usecase.SaveBusinessCardUseCase
+import com.example.businesscard.ui.navigation.CardEdit
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 data class EditUiState(
     val name: String = "",
@@ -26,20 +31,24 @@ data class EditUiState(
     val isDeleted: Boolean = false,
 )
 
-class EditViewModel(
+@HiltViewModel
+class EditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repository: BusinessCardRepository,
+    private val observeBusinessCard: ObserveBusinessCardUseCase,
+    private val saveBusinessCard: SaveBusinessCardUseCase,
+    private val deleteBusinessCard: DeleteBusinessCardUseCase,
 ) : ViewModel() {
 
-    private val cardId: Long = savedStateHandle.get<Long>(CARD_ID_ARG) ?: NEW_CARD_ID
+    private val cardId: Long = savedStateHandle.toRoute<CardEdit>().cardId
+    private val isNew: Boolean = cardId == BusinessCard.NEW_ID
 
-    private val _uiState = MutableStateFlow(EditUiState(isNew = cardId == NEW_CARD_ID))
+    private val _uiState = MutableStateFlow(EditUiState(isNew = isNew))
     val uiState: StateFlow<EditUiState> = _uiState.asStateFlow()
 
     init {
-        if (cardId != NEW_CARD_ID) {
+        if (!isNew) {
             viewModelScope.launch {
-                repository.observeCard(cardId).firstOrNull()?.let { card ->
+                observeBusinessCard(cardId).firstOrNull()?.let { card ->
                     _uiState.update {
                         it.copy(
                             name = card.name,
@@ -62,29 +71,30 @@ class EditViewModel(
 
     fun save() {
         val state = _uiState.value
-        if (state.name.isBlank()) {
-            _uiState.update { it.copy(nameError = true) }
-            return
-        }
         viewModelScope.launch {
-            repository.save(
+            val result = saveBusinessCard(
                 BusinessCard(
-                    id = if (state.isNew) 0 else cardId,
-                    name = state.name.trim(),
-                    company = state.company.trim(),
-                    title = state.title.trim(),
-                    phone = state.phone.trim(),
-                    email = state.email.trim(),
+                    id = cardId,
+                    name = state.name,
+                    company = state.company,
+                    title = state.title,
+                    phone = state.phone,
+                    email = state.email,
                 ),
             )
-            _uiState.update { it.copy(isSaved = true) }
+            _uiState.update {
+                when (result) {
+                    SaveBusinessCardResult.Success -> it.copy(isSaved = true)
+                    SaveBusinessCardResult.NameRequired -> it.copy(nameError = true)
+                }
+            }
         }
     }
 
     fun delete() {
-        if (_uiState.value.isNew) return
+        if (isNew) return
         viewModelScope.launch {
-            repository.delete(cardId)
+            deleteBusinessCard(cardId)
             _uiState.update { it.copy(isDeleted = true) }
         }
     }
