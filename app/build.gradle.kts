@@ -37,6 +37,13 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests {
+            // Robolectric(SavedStateHandle.toRouteなどAndroid APIを使うViewModelのテスト)用
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -63,5 +70,6 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
 }
