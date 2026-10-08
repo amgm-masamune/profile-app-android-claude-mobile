@@ -31,7 +31,8 @@ import java.io.File
  * そのため実際の Android の描画で撮る。画像はアプリの内部領域 `files/screenshots/` に保存され、
  * CI(scripts/device-screenshots.sh)が取り出して `screenshots` ブランチに置く。
  *
- * [detail] は横画面固定の画面なので、端末を横向きにしてから単独で実行する。
+ * [detail] は横画面固定の画面。画面が自分で横向きを要求し、端末が回転し終えてから撮る
+ * (回転でActivityが作り直されないよう、src/debug/AndroidManifest.xml で設定している)。
  */
 @RunWith(AndroidJUnit4::class)
 class GlassScreenshotTest {
@@ -105,6 +106,9 @@ class GlassScreenshotTest {
 
     private fun capture(name: String, content: @Composable () -> Unit) {
         composeRule.setContent { BusinessCardTheme(content) }
+        composeRule.waitForIdle()
+        // 横画面への回転など、窓の大きさが変わり終わるのを待つ
+        Thread.sleep(1_500)
         composeRule.waitForIdle()
         // 部品の位置が壁の照明に反映されるまで(数フレーム)待つ
         composeRule.mainClock.advanceTimeBy(500)

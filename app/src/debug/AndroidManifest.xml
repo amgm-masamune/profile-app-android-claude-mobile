@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!--
+            画面のテスト(GlassScreenshotTest)が使う空のActivity(ui-test-manifest が用意するもの)。
+            表示画面は横画面に切り替えるので、回転でActivityが作り直されてテストの画面が消えないようにする。
+        -->
+        <activity
+            android:name="androidx.activity.ComponentActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
+    </application>
+
+</manifest>

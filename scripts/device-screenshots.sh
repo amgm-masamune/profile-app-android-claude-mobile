@@ -22,15 +22,10 @@ run_tests() {
   fi
 }
 
-# 縦画面
+# 縦画面で始める(表示画面のテストは、画面が自分で横向きに切り替える)
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 0
-run_tests "$CLASS#catalog,$CLASS#list,$CLASS#listEmpty,$CLASS#edit,$CLASS#editNewWithError"
-
-# 横画面(表示画面は横画面固定)
-adb shell settings put system user_rotation 1
-sleep 3
-run_tests "$CLASS#detail"
+run_tests "$CLASS"
 
 mkdir -p shots
 adb exec-out run-as "$PKG" tar -cf - -C files screenshots | tar -xf - -C shots
