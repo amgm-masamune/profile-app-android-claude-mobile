@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.Color
  *
  * 見本(グレージュの壁に、すりガラスの部品が浮いている写真風のUIキット)から色を拾っている。
  *  - 壁: 左上から斜めに光が差し、左下が陰になったグレージュ
- *  - ガラス: 白の薄い膜(18%)。押す・選ぶと白が濃くなる
+ *  - ガラス: 少し青みのある白の薄い膜(24%)。壁の暖色を打ち消して灰色っぽく見せる。押す・選ぶと白が濃くなる
  *  - 光: 部品の下端が白く光り、壁にも光が漏れる
  *  - 影: 右下に落ちる茶色がかった影
  *  - 文字: すべて白
@@ -52,22 +52,22 @@ val GreigeSoftGlassColors = SoftGlassColors(
     wallBottom = Color(0xFF968677),
     wallLight = Color(0xFFE2D7CB),
     wallShade = Color(0xFF6E6054),
-    glass = Color(0x2EFFFFFF),
+    glass = Color(0x3DDCE1E6),
     glassPressed = Color(0x4DFFFFFF),
     glassSelected = Color(0x52FFFFFF),
     glassTile = Color(0x73FFFFFF),
     glassSheen = Color(0x40FFFFFF),
     glassBorder = Color(0x8CFFFFFF),
     focusBorder = Color(0xF2FFFFFF),
-    dialog = Color(0xFFAC9D90),
+    dialog = Color(0xFFB0A59B),
     glow = Color(0xFFFFFCF6),
-    castShadow = Color(0x55281C12),
+    castShadow = Color(0x4A281C12),
     thumbTop = Color(0xFFF7F4F0),
     thumbBottom = Color(0xFFDAD5CF),
     ink = Color(0xFFFFFFFF),
     inkMuted = Color(0xC7FFFFFF),
     inkFaint = Color(0x99FFFFFF),
-    danger = Color(0xFFFFC7BD),
+    danger = Color(0xFFFFB8AB),
 )
 
 val LocalSoftGlassColors = staticCompositionLocalOf { GreigeSoftGlassColors }

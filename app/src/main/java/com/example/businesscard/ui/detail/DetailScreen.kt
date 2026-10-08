@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.businesscard.R
 import com.example.businesscard.ui.component.BusinessCardView
+import com.example.businesscard.ui.component.GlassButtonStyle
 import com.example.businesscard.ui.component.GlassIconButton
 import com.example.businesscard.ui.component.SoftGlassBackground
 import com.example.businesscard.ui.preview.SampleCards
@@ -96,7 +97,7 @@ fun DetailScreen(
                     onClick = onEdit,
                     icon = Icons.Outlined.Edit,
                     contentDescription = stringResource(R.string.edit),
-                    primary = true,
+                    style = GlassButtonStyle.Primary,
                 )
             }
         }

@@ -64,7 +64,7 @@ enum class GlowEdge { Bottom, Top }
  * すりガラスの部品を描く Modifier。見本の部品は、次の6層でできている。
  *
  * 1. 壁に落ちる影 … 右下にずれた柔らかい影(部品の外側だけに描き、ガラス越しに透けないようにする)
- * 2. 壁に漏れる光 … 光る辺の外側に広がる楕円の光
+ * 2. 壁に漏れる光 … 光る辺の外側に広がる楕円の光(壁から浮いている部品だけ)
  * 3. ガラスの膜   … 白の薄い膜 + 上端のつや
  * 4. 内側の光     … 光る辺の内側にたまる光
  * 5. 縁           … 1dpの白い縁(上が明るい)
@@ -107,10 +107,11 @@ fun Modifier.glassSurface(
 
         val edgeY = if (glowEdge == GlowEdge.Bottom) size.height else 0f
         val glowCenter = Offset(size.width / 2f, edgeY)
-        val outerRadiusX = size.width * 0.34f
-        val outerRadiusY = min(size.height * 0.7f, 40.dp.toPx())
-        val innerRadiusX = size.width * 0.38f
-        val innerRadiusY = min(size.height * 0.5f, 26.dp.toPx())
+        // 光は中央に集まる。名刺のような大きな面でも横に広がりすぎないよう上限を設ける
+        val outerRadiusX = min(size.width * 0.3f, 84.dp.toPx())
+        val outerRadiusY = minOf(size.height * 0.7f, 36.dp.toPx(), outerRadiusX * 1.1f)
+        val innerRadiusX = min(size.width * 0.34f, 96.dp.toPx())
+        val innerRadiusY = minOf(size.height * 0.5f, 24.dp.toPx(), innerRadiusX)
 
         val sheen = Brush.verticalGradient(
             colors = listOf(c.glassSheen, Color.Transparent),
@@ -123,8 +124,9 @@ fun Modifier.glassSurface(
             1f to border.copy(alpha = border.alpha * 0.8f),
         )
         val strokePx = borderWidth.toPx()
-        val lineStart = size.width * 0.12f
-        val lineEnd = size.width * 0.88f
+        val lineHalf = min(size.width * 0.38f, 120.dp.toPx())
+        val lineStart = size.width / 2f - lineHalf
+        val lineEnd = size.width / 2f + lineHalf
         val lineY = if (glowEdge == GlowEdge.Bottom) size.height - strokePx else strokePx
         val edgeLine = Brush.horizontalGradient(
             0f to Color.Transparent,
@@ -141,10 +143,10 @@ fun Modifier.glassSurface(
                     drawIntoCanvas { canvas -> canvas.drawPath(path, shadowPaint) }
                 }
             }
-            // 2. 壁に漏れる光
-            if (strength > 0f) {
+            // 2. 壁に漏れる光(壁から浮いている部品だけ。部品の中のタイルは外に光を漏らさない)
+            if (strength > 0f && castShadow) {
                 clipPath(path, clipOp = ClipOp.Difference) {
-                    drawGlow(glowCenter, outerRadiusX, outerRadiusY, c.glow.copy(alpha = 0.8f * strength))
+                    drawGlow(glowCenter, outerRadiusX, outerRadiusY, c.glow.copy(alpha = 0.9f * strength))
                 }
             }
             // 3. ガラスの膜とつや
@@ -164,7 +166,7 @@ fun Modifier.glassSurface(
                     brush = edgeLine,
                     start = Offset(lineStart, lineY),
                     end = Offset(lineEnd, lineY),
-                    strokeWidth = 2.dp.toPx(),
+                    strokeWidth = 2.5.dp.toPx(),
                     cap = StrokeCap.Round,
                 )
             }
@@ -214,24 +216,25 @@ fun SoftGlassBackground(
                 val h = size.height
                 val base = Brush.verticalGradient(listOf(c.wallTop, c.wallBottom))
 
-                // 光の帯: 左上(w*0.09, 0)から右下(w*0.64, h)へ向かう帯。帯に直交する向きにグラデーションをかける
-                val beamCenter = Offset(w * 0.32f, h * 0.42f)
-                val dirX = 0.55f * w
-                val dirY = h
+                // 光の帯: 左上から右下へ斜めに差し込む帯(見本と同じ約54度。画面の縦横比に関係なく同じ角度)。
+                // 帯に直交する向きにグラデーションをかける
+                val beamCenter = Offset(w * 0.3f, h * 0.4f)
+                val dirX = 1f
+                val dirY = 1.36f
                 val len = sqrt(dirX * dirX + dirY * dirY)
                 val normal = Offset(dirY / len, -dirX / len)
                 val half = min(w, h) * 0.45f
                 val beam = Brush.linearGradient(
                     0f to Color.Transparent,
                     0.3f to Color.Transparent,
-                    0.5f to c.wallLight.copy(alpha = 0.42f),
+                    0.5f to c.wallLight.copy(alpha = 0.5f),
                     0.7f to Color.Transparent,
                     1f to Color.Transparent,
                     start = beamCenter - normal * half,
                     end = beamCenter + normal * half,
                 )
                 val shadeCorner = Brush.radialGradient(
-                    0f to c.wallShade.copy(alpha = 0.7f),
+                    0f to c.wallShade.copy(alpha = 0.8f),
                     1f to Color.Transparent,
                     center = Offset(0f, h),
                     radius = max(w, h) * 0.6f,

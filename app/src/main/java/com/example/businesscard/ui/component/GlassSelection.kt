@@ -174,11 +174,11 @@ private fun GlassSegmentRow(
             ) {
                 Text(
                     text = option,
-                    style = SoftGlassType.button,
+                    style = SoftGlassType.field,
                     color = if (selected) c.ink else c.inkFaint,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
         }

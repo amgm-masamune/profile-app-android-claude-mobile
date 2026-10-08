@@ -34,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.businesscard.R
 import com.example.businesscard.ui.component.GlassButton
+import com.example.businesscard.ui.component.GlassButtonStyle
 import com.example.businesscard.ui.component.GlassConfirmDialog
 import com.example.businesscard.ui.component.GlassIconButton
 import com.example.businesscard.ui.component.GlassTextField
@@ -41,7 +42,6 @@ import com.example.businesscard.ui.component.SoftGlassScaffold
 import com.example.businesscard.ui.component.SoftGlassTopBar
 import com.example.businesscard.ui.preview.SampleCards
 import com.example.businesscard.ui.theme.BusinessCardTheme
-import com.example.businesscard.ui.theme.SoftGlassTheme
 
 @Composable
 fun EditRoute(
@@ -112,7 +112,7 @@ fun EditScreen(
                         onClick = { showDeleteConfirm = true },
                         icon = Icons.Outlined.Delete,
                         contentDescription = stringResource(R.string.delete),
-                        tint = SoftGlassTheme.colors.danger,
+                        style = GlassButtonStyle.Danger,
                     )
                 }
                 GlassButton(

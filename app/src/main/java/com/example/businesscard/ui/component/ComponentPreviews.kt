@@ -119,7 +119,7 @@ private fun CatalogRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(28.dp),
+        horizontalArrangement = Arrangement.spacedBy(32.dp),
     ) {
         Box(Modifier.weight(1f)) { left() }
         Box(Modifier.weight(1f)) { right() }

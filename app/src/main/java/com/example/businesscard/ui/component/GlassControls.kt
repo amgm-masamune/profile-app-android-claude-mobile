@@ -25,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -114,7 +113,9 @@ fun GlassButton(
 
 /**
  * 四角いアイコンボタン(見本の「Icon button」の明るいタイル)。
- * `primary = true` のときは主ボタンと同じだけ強く光る。
+ *  - Secondary(既定): 明るいタイル。戻るなど
+ *  - Primary: 明るいタイル + 主ボタンと同じ強い光。編集など、その画面の主操作
+ *  - Danger: 危険色のアイコン。明るいタイルの上では危険色が読めないので、膜はふつうのガラスにする
  */
 @Composable
 fun GlassIconButton(
@@ -122,19 +123,24 @@ fun GlassIconButton(
     icon: ImageVector,
     contentDescription: String,
     modifier: Modifier = Modifier,
-    primary: Boolean = false,
-    tint: Color = SoftGlassTheme.colors.ink,
+    style: GlassButtonStyle = GlassButtonStyle.Secondary,
 ) {
     val c = SoftGlassTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val fill = when {
+        style == GlassButtonStyle.Danger -> if (pressed) c.glassPressed else c.glass
+        pressed -> c.glassTile.copy(alpha = 0.6f)
+        else -> c.glassTile
+    }
+    val tint = if (style == GlassButtonStyle.Danger) c.danger else c.ink
     Box(
         modifier = modifier
             .size(SoftGlassSize.iconButton)
             .glassSurface(
                 shape = SoftGlassShapes.control,
-                fill = if (pressed) c.glassTile.copy(alpha = 0.6f) else c.glassTile,
-                glow = if (primary || pressed) GlassGlow.Strong else GlassGlow.Soft,
+                fill = fill,
+                glow = if (style == GlassButtonStyle.Primary || pressed) GlassGlow.Strong else GlassGlow.Soft,
             )
             .clip(SoftGlassShapes.control)
             .clickable(
