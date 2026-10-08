@@ -6,6 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
+import com.example.businesscard.ui.glass.LocalGlowHeadroom
+import com.example.businesscard.ui.glass.rememberGlowHeadroom
 import com.example.businesscard.ui.navigation.AppNavHost
 import com.example.businesscard.ui.theme.BusinessCardTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -20,8 +23,11 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         setContent {
-            BusinessCardTheme {
-                AppNavHost()
+            // HDR対応の画面では、光源を白より明るく光らせる
+            CompositionLocalProvider(LocalGlowHeadroom provides rememberGlowHeadroom(this)) {
+                BusinessCardTheme {
+                    AppNavHost()
+                }
             }
         }
     }

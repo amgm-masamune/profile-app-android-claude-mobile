@@ -1,10 +1,14 @@
 package com.example.businesscard.ui
 
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onRoot
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.example.businesscard.ui.component.SoftGlassCatalog
 import com.example.businesscard.ui.detail.DetailScreen
 import com.example.businesscard.ui.detail.DetailUiState
@@ -14,38 +18,25 @@ import com.example.businesscard.ui.list.ListScreen
 import com.example.businesscard.ui.list.ListUiState
 import com.example.businesscard.ui.preview.SampleCards
 import com.example.businesscard.ui.theme.BusinessCardTheme
-import org.junit.Assume.assumeTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
-import org.robolectric.annotation.GraphicsMode
 import java.io.File
 
 /**
- * 見た目の確認用に、カタログと各画面をPNGに書き出す(スクリーンショットテスト)。
+ * 見た目の確認用に、カタログと各画面を実機(またはエミュレータ)で描いてPNGに保存する。
  *
- * Robolectric のネイティブ描画(実機と同じ描画エンジンをPC上で動かす仕組み)で画面を描き、
- * `app/build/outputs/screenshots/` に保存する。通常のテスト実行では飛ばし、
- * `-PrecordScreenshots=true` を付けたときだけ動く。CIではこの画像を `screenshots` ブランチに置く。
+ * すりガラスは GPU のシェーダーと RenderEffect で描くので、PC上の疑似描画(Robolectric)では再現できない。
+ * そのため実際の Android の描画で撮る。画像はアプリの内部領域 `files/screenshots/` に保存され、
+ * CI(scripts/device-screenshots.sh)が取り出して `screenshots` ブランチに置く。
+ *
+ * [detail] は横画面固定の画面なので、端末を横向きにしてから単独で実行する。
  */
-@RunWith(RobolectricTestRunner::class)
-@GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [34], qualifiers = "w412dp-h892dp-xhdpi")
-class ScreenshotTest {
+@RunWith(AndroidJUnit4::class)
+class GlassScreenshotTest {
 
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
-
-    @Before
-    fun onlyWhenRecording() {
-        assumeTrue(
-            "スクリーンショットは -PrecordScreenshots=true のときだけ書き出す",
-            System.getProperty("screenshots.record") == "true",
-        )
-    }
 
     @Test
     fun catalog() = capture("catalog") { SoftGlassCatalog() }
@@ -103,7 +94,6 @@ class ScreenshotTest {
     }
 
     @Test
-    @Config(qualifiers = "w892dp-h412dp-land-xhdpi")
     fun detail() = capture("detail") {
         DetailScreen(
             uiState = DetailUiState(card = SampleCards.taro, isLoading = false),
@@ -115,12 +105,13 @@ class ScreenshotTest {
     private fun capture(name: String, content: @Composable () -> Unit) {
         composeRule.setContent { BusinessCardTheme(content) }
         composeRule.waitForIdle()
+        // 部品の位置が壁の照明に反映されるまで(数フレーム)待つ
+        composeRule.mainClock.advanceTimeBy(500)
+        composeRule.waitForIdle()
 
-        val view = composeRule.activity.window.decorView
-        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
-        view.draw(Canvas(bitmap))
-
-        val dir = File("build/outputs/screenshots").apply { mkdirs() }
+        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val dir = File(context.filesDir, "screenshots").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { out ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
         }

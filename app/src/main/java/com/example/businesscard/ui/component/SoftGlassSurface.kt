@@ -1,7 +1,6 @@
 package com.example.businesscard.ui.component
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,22 +15,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -39,12 +24,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.businesscard.R
+import com.example.businesscard.ui.glass.GlassSceneHost
+import com.example.businesscard.ui.glass.floatingGlass
+import com.example.businesscard.ui.glass.insetGlass
 import com.example.businesscard.ui.theme.SoftGlassLight
 import com.example.businesscard.ui.theme.SoftGlassTheme
 import com.example.businesscard.ui.theme.SoftGlassType
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.sqrt
 
 /**
  * 光の強さ。見本では主ボタン(Launch / Premium plan)がいちばん強く光り、
@@ -57,21 +42,24 @@ enum class GlassGlow(internal val strength: Float) {
     Strong(1f),
 }
 
-/** 光が当たる辺。ふつうは下端。選択中のタブだけ上端が光る。 */
+/** 光源のある辺。ふつうは下端。選択中のタブだけ上端が光る。 */
 enum class GlowEdge { Bottom, Top }
 
+/** ガラスの置き方。 */
+enum class GlassLayer {
+    /** 壁から浮いた板。背後の壁を実際にぼかして透かし、壁に影を落とし、光源で壁を照らす */
+    Floating,
+
+    /** ほかのガラスの上に重ねたタイル(アイコンの四角・選択中のタブ)。半透明の白い膜として重ねる */
+    Inset,
+}
+
 /**
- * すりガラスの部品を描く Modifier。見本の部品は、次の6層でできている。
+ * すりガラスの部品を描く Modifier。描き方の中身は `ui/glass/`(AGSLシェーダーと RenderEffect)。
  *
- * 1. 壁に落ちる影 … 右下にずれた柔らかい影(部品の外側だけに描き、ガラス越しに透けないようにする)
- * 2. 壁に漏れる光 … 光る辺の外側に広がる楕円の光(壁から浮いている部品だけ)
- * 3. ガラスの膜   … 白の薄い膜 + 上端のつや
- * 4. 内側の光     … 光る辺の内側にたまる光
- * 5. 縁           … 1dpの白い縁(上が明るい)
- * 6. 光る縁       … 光る辺の中央がいちばん白い線
- *
- * 背面を実際にぼかす(実ブラー)はしていない。壁がなめらかなグラデーションなので、
- * 半透明の膜だけでもすりガラスに見える。
+ * @param fill [GlassLayer.Floating] では背後の壁に混ぜる色(アルファが混ぜる量)、
+ *   [GlassLayer.Inset] では重ねる膜の色
+ * @param border 縁の色。左上ほど明るく照らされる
  */
 @Composable
 fun Modifier.glassSurface(
@@ -79,128 +67,39 @@ fun Modifier.glassSurface(
     fill: Color = SoftGlassTheme.colors.glass,
     glow: GlassGlow = GlassGlow.Medium,
     glowEdge: GlowEdge = GlowEdge.Bottom,
-    castShadow: Boolean = true,
+    layer: GlassLayer = GlassLayer.Floating,
     border: Color = SoftGlassTheme.colors.glassBorder,
     borderWidth: Dp = 1.dp,
 ): Modifier {
     val c = SoftGlassTheme.colors
-    return this.drawWithCache {
-        val path = shape.createOutline(size, layoutDirection, this).toPath()
-        val strength = glow.strength
-        val shadowPaint = if (castShadow) {
-            Paint().also { paint ->
-                paint.asFrameworkPaint().apply {
-                    isAntiAlias = true
-                    // 塗りは透明にして、setShadowLayer の影だけを描く
-                    color = android.graphics.Color.TRANSPARENT
-                    setShadowLayer(
-                        SoftGlassLight.shadowBlur.toPx(),
-                        SoftGlassLight.shadowOffsetX.toPx(),
-                        SoftGlassLight.shadowOffsetY.toPx(),
-                        c.castShadow.toArgb(),
-                    )
-                }
-            }
-        } else {
-            null
-        }
-
-        val edgeY = if (glowEdge == GlowEdge.Bottom) size.height else 0f
-        val glowCenter = Offset(size.width / 2f, edgeY)
-        // 光は中央に集まる。名刺のような大きな面でも横に広がりすぎないよう上限を設ける
-        val outerRadiusX = min(size.width * 0.3f, 84.dp.toPx())
-        val outerRadiusY = minOf(size.height * 0.7f, 36.dp.toPx(), outerRadiusX * 1.1f)
-        val innerRadiusX = min(size.width * 0.34f, 96.dp.toPx())
-        val innerRadiusY = minOf(size.height * 0.5f, 24.dp.toPx(), innerRadiusX)
-
-        val sheen = Brush.verticalGradient(
-            colors = listOf(c.glassSheen, Color.Transparent),
-            startY = 0f,
-            endY = min(size.height * 0.5f, 28.dp.toPx()),
+    val emitTop = glowEdge == GlowEdge.Top
+    return when (layer) {
+        GlassLayer.Floating -> this.floatingGlass(
+            shape = shape,
+            tint = fill,
+            emit = glow.strength,
+            emitTop = emitTop,
+            rim = border,
+            rimWidth = borderWidth,
+            lightColor = c.glow,
+            elevation = SoftGlassLight.elevation,
+            frostBlur = SoftGlassLight.frostBlur,
         )
-        val borderBrush = Brush.verticalGradient(
-            0f to border,
-            0.5f to border.copy(alpha = border.alpha * 0.55f),
-            1f to border.copy(alpha = border.alpha * 0.8f),
-        )
-        val strokePx = borderWidth.toPx()
-        val lineHalf = min(size.width * 0.38f, 120.dp.toPx())
-        val lineStart = size.width / 2f - lineHalf
-        val lineEnd = size.width / 2f + lineHalf
-        val lineY = if (glowEdge == GlowEdge.Bottom) size.height - strokePx else strokePx
-        val edgeLine = Brush.horizontalGradient(
-            0f to Color.Transparent,
-            0.5f to c.glow.copy(alpha = 0.95f * strength),
-            1f to Color.Transparent,
-            startX = lineStart,
-            endX = lineEnd,
-        )
-
-        onDrawBehind {
-            // 1. 壁に落ちる影
-            if (shadowPaint != null) {
-                clipPath(path, clipOp = ClipOp.Difference) {
-                    drawIntoCanvas { canvas -> canvas.drawPath(path, shadowPaint) }
-                }
-            }
-            // 2. 壁に漏れる光(壁から浮いている部品だけ。部品の中のタイルは外に光を漏らさない)
-            if (strength > 0f && castShadow) {
-                clipPath(path, clipOp = ClipOp.Difference) {
-                    drawGlow(glowCenter, outerRadiusX, outerRadiusY, c.glow.copy(alpha = 0.9f * strength))
-                }
-            }
-            // 3. ガラスの膜とつや
-            drawPath(path, color = fill)
-            drawPath(path, brush = sheen)
-            // 4. 内側の光
-            if (strength > 0f) {
-                clipPath(path) {
-                    drawGlow(glowCenter, innerRadiusX, innerRadiusY, c.glow.copy(alpha = 0.55f * strength))
-                }
-            }
-            // 5. 縁
-            drawPath(path, brush = borderBrush, style = Stroke(width = strokePx))
-            // 6. 光る縁
-            if (strength > 0f) {
-                drawLine(
-                    brush = edgeLine,
-                    start = Offset(lineStart, lineY),
-                    end = Offset(lineEnd, lineY),
-                    strokeWidth = 2.5.dp.toPx(),
-                    cap = StrokeCap.Round,
-                )
-            }
-        }
-    }
-}
-
-/** 楕円の光。円の放射グラデーションを縦に伸縮して作る。 */
-internal fun DrawScope.drawGlow(center: Offset, radiusX: Float, radiusY: Float, color: Color) {
-    if (radiusX <= 0f || radiusY <= 0f || color.alpha <= 0f) return
-    scale(scaleX = 1f, scaleY = radiusY / radiusX, pivot = center) {
-        drawCircle(
-            brush = Brush.radialGradient(
-                0f to color,
-                0.4f to color.copy(alpha = color.alpha * 0.5f),
-                1f to Color.Transparent,
-                center = center,
-                radius = radiusX,
-            ),
-            radius = radiusX,
-            center = center,
+        GlassLayer.Inset -> this.insetGlass(
+            shape = shape,
+            fill = fill,
+            emit = glow.strength,
+            emitTop = emitTop,
+            rim = border,
+            rimWidth = borderWidth,
+            lightColor = c.glow,
         )
     }
-}
-
-private fun Outline.toPath(): Path = when (this) {
-    is Outline.Rectangle -> Path().apply { addRect(rect) }
-    is Outline.Rounded -> Path().apply { addRoundRect(roundRect) }
-    is Outline.Generic -> path
 }
 
 /**
- * 画面の背景(壁)。グレージュの縦グラデーションに、
- * 左上から斜めに差し込む光の帯と、左下・下中央の陰を重ねる。
+ * 画面の背景(壁)。部屋の照明(環境光・左上のキーライト・斜めの日差し)を GPU で計算して描く。
+ * 中に置いたガラスの部品の影と、部品の光源が壁を照らす光も、ここで一緒に計算される。
  */
 @Composable
 fun SoftGlassBackground(
@@ -208,50 +107,11 @@ fun SoftGlassBackground(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val c = SoftGlassTheme.colors
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .drawWithCache {
-                val w = size.width
-                val h = size.height
-                val base = Brush.verticalGradient(listOf(c.wallTop, c.wallBottom))
-
-                // 光の帯: 左上から右下へ斜めに差し込む帯(見本と同じ約54度。画面の縦横比に関係なく同じ角度)。
-                // 帯に直交する向きにグラデーションをかける
-                val beamCenter = Offset(w * 0.3f, h * 0.4f)
-                val dirX = 1f
-                val dirY = 1.36f
-                val len = sqrt(dirX * dirX + dirY * dirY)
-                val normal = Offset(dirY / len, -dirX / len)
-                val half = min(w, h) * 0.45f
-                val beam = Brush.linearGradient(
-                    0f to Color.Transparent,
-                    0.3f to Color.Transparent,
-                    0.5f to c.wallLight.copy(alpha = 0.5f),
-                    0.7f to Color.Transparent,
-                    1f to Color.Transparent,
-                    start = beamCenter - normal * half,
-                    end = beamCenter + normal * half,
-                )
-                val shadeCorner = Brush.radialGradient(
-                    0f to c.wallShade.copy(alpha = 0.8f),
-                    1f to Color.Transparent,
-                    center = Offset(0f, h),
-                    radius = max(w, h) * 0.6f,
-                )
-                val shadeBottom = Brush.radialGradient(
-                    0f to c.wallShade.copy(alpha = 0.35f),
-                    1f to Color.Transparent,
-                    center = Offset(w * 0.55f, h * 1.05f),
-                    radius = min(w, h) * 0.7f,
-                )
-                onDrawBehind {
-                    drawRect(base)
-                    drawRect(shadeCorner)
-                    drawRect(shadeBottom)
-                    drawRect(beam)
-                }
-            },
+    GlassSceneHost(
+        modifier = modifier.fillMaxSize(),
+        wallTop = c.wallTop,
+        wallBottom = c.wallBottom,
+        lightColor = c.glow,
         content = content,
     )
 }

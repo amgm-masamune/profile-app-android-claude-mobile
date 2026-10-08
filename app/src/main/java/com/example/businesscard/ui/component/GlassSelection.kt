@@ -29,12 +29,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.businesscard.ui.glass.glowingBall
 import com.example.businesscard.ui.theme.SoftGlassShapes
 import com.example.businesscard.ui.theme.SoftGlassSize
 import com.example.businesscard.ui.theme.SoftGlassTheme
@@ -162,7 +160,7 @@ private fun GlassSegmentRow(
                                 fill = c.glassSelected,
                                 glow = GlassGlow.Medium,
                                 glowEdge = selectedGlowEdge,
-                                castShadow = false,
+                                layer = GlassLayer.Inset,
                             )
                         } else {
                             Modifier
@@ -211,29 +209,21 @@ fun GlassSwitch(
                 border = c.focusBorder.copy(alpha = 0.85f),
                 borderWidth = 2.dp,
             )
-            .clip(SoftGlassShapes.pill)
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+            // つまみの光が枠の外までにじむよう、切り抜かない(押した反応はつまみの動きで返す)
+            .toggleable(
+                value = checked,
+                interactionSource = null,
+                indication = null,
+                role = Role.Switch,
+                onValueChange = onCheckedChange,
+            ),
         contentAlignment = Alignment.CenterStart,
     ) {
         Box(
             modifier = Modifier
                 .offset(x = thumbX)
                 .size(SoftGlassSize.switchThumb)
-                .drawBehind {
-                    val r = size.minDimension / 2f
-                    // 玉のまわりの光
-                    drawGlow(center, r * 1.9f, r * 1.9f, c.glow.copy(alpha = 0.6f))
-                    // 玉(上が明るい白)
-                    drawCircle(
-                        brush = Brush.verticalGradient(listOf(c.thumbTop, c.thumbBottom)),
-                        radius = r,
-                    )
-                    drawCircle(
-                        color = c.glow.copy(alpha = 0.9f),
-                        radius = r - 0.5.dp.toPx(),
-                        style = Stroke(width = 1.dp.toPx()),
-                    )
-                },
+                .glowingBall(top = c.thumbTop, bottom = c.thumbBottom, lightColor = c.glow),
         )
     }
 }

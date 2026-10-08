@@ -1,5 +1,6 @@
 package com.example.businesscard.ui.component
 
+import android.view.WindowManager
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,6 +21,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -27,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
@@ -34,6 +39,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogWindowProvider
+import com.example.businesscard.ui.glass.LocalGlassScene
 import com.example.businesscard.ui.theme.SoftGlassShapes
 import com.example.businesscard.ui.theme.SoftGlassSize
 import com.example.businesscard.ui.theme.SoftGlassTheme
@@ -220,7 +227,7 @@ fun GlassTextField(
                                     shape = SoftGlassShapes.control,
                                     fill = c.glassTile,
                                     glow = GlassGlow.Soft,
-                                    castShadow = false,
+                                    layer = GlassLayer.Inset,
                                 ),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -249,8 +256,12 @@ fun GlassTextField(
 }
 
 /**
- * 取り消せない操作の確認ダイアログ。不透明なすりガラスの板に、
+ * 取り消せない操作の確認ダイアログ。半透明のすりガラスの板に、
  * [キャンセル(副)] [確定(危険色)] の2つのボタンを並べる。
+ *
+ * ダイアログは別の窓なので、画面の壁を透かし見ることはできない。
+ * 代わりに Android 12 以上の「窓の背面ぼかし」で、後ろの画面全体を実際にぼかす
+ * (端末の設定や省電力で背面ぼかしが切られているときは、ふつうの暗転になる)。
  */
 @Composable
 fun GlassConfirmDialog(
@@ -263,34 +274,50 @@ fun GlassConfirmDialog(
 ) {
     val c = SoftGlassTheme.colors
     Dialog(onDismissRequest = onDismiss) {
-        // 影と光がダイアログの窓の外で切れないよう、周りに余白を取る
-        Box(modifier = Modifier.padding(start = 8.dp, top = 8.dp, end = 24.dp, bottom = 28.dp)) {
-            Column(
-                modifier = Modifier
-                    .glassSurface(shape = SoftGlassShapes.dialog, fill = c.dialog, glow = GlassGlow.Soft)
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(text = title, style = SoftGlassType.cardCompany, color = c.ink)
-                Text(text = message, style = SoftGlassType.body, color = c.inkMuted)
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+        BlurBehindDialogWindow()
+        CompositionLocalProvider(LocalGlassScene provides null) {
+            // 光とにじみがダイアログの窓の外で切れないよう、周りに余白を取る
+            Box(modifier = Modifier.padding(24.dp)) {
+                Column(
+                    modifier = Modifier
+                        .glassSurface(shape = SoftGlassShapes.dialog, fill = c.dialog, glow = GlassGlow.Soft)
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    GlassButton(
-                        text = dismissLabel,
-                        onClick = onDismiss,
-                        style = GlassButtonStyle.Secondary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    GlassButton(
-                        text = confirmLabel,
-                        onClick = onConfirm,
-                        style = GlassButtonStyle.Danger,
-                        modifier = Modifier.weight(1f),
-                    )
+                    Text(text = title, style = SoftGlassType.cardCompany, color = c.ink)
+                    Text(text = message, style = SoftGlassType.body, color = c.inkMuted)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        GlassButton(
+                            text = dismissLabel,
+                            onClick = onDismiss,
+                            style = GlassButtonStyle.Secondary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        GlassButton(
+                            text = confirmLabel,
+                            onClick = onConfirm,
+                            style = GlassButtonStyle.Danger,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+/** ダイアログの窓の後ろにある画面全体を、OSの機能で実際にぼかす。 */
+@Composable
+private fun BlurBehindDialogWindow() {
+    val window = (LocalView.current.parent as? DialogWindowProvider)?.window ?: return
+    val radius = with(LocalDensity.current) { 24.dp.roundToPx() }
+    SideEffect {
+        if (window.windowManager.isCrossWindowBlurEnabled) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+            window.attributes = window.attributes.also { it.blurBehindRadius = radius }
         }
     }
 }

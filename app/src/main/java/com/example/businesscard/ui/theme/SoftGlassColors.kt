@@ -11,9 +11,9 @@ import androidx.compose.ui.graphics.Color
  *
  * 見本(グレージュの壁に、すりガラスの部品が浮いている写真風のUIキット)から色を拾っている。
  *  - 壁: 左上から斜めに光が差し、左下が陰になったグレージュ
- *  - ガラス: 少し青みのある白の薄い膜(24%)。壁の暖色を打ち消して灰色っぽく見せる。押す・選ぶと白が濃くなる
- *  - 光: 部品の下端が白く光り、壁にも光が漏れる
- *  - 影: 右下に落ちる茶色がかった影
+ *  - ガラス: 背後の壁を実際にぼかして透かし、少し青みのある白(15%)を混ぜる。押す・選ぶと白が濃くなる
+ *  - 光: 部品の下端の光源が光る(光の計算は ui/glass/GlassShaders.kt)
+ *  - 影: 左上のキーライトで、右下に影が落ちる(影の計算も同じシェーダー)
  *  - 文字: すべて白
  *
  * 見本は昼の一枚なので、ライト/ダークの切り替えは持たない(端末設定に関係なく同じ見た目)。
@@ -21,23 +21,19 @@ import androidx.compose.ui.graphics.Color
  */
 @Immutable
 data class SoftGlassColors(
-    // 壁(画面背景)
+    // 壁(画面背景)の地の色。実際の明るさは照明で決まる
     val wallTop: Color,
     val wallBottom: Color,
-    val wallLight: Color,
-    val wallShade: Color,
     // ガラス面
     val glass: Color,
     val glassPressed: Color,
     val glassSelected: Color,
     val glassTile: Color,
-    val glassSheen: Color,
     val glassBorder: Color,
     val focusBorder: Color,
     val dialog: Color,
-    // 光と影
+    // 光
     val glow: Color,
-    val castShadow: Color,
     val thumbTop: Color,
     val thumbBottom: Color,
     // 文字
@@ -50,18 +46,14 @@ data class SoftGlassColors(
 val GreigeSoftGlassColors = SoftGlassColors(
     wallTop = Color(0xFFAA9B8E),
     wallBottom = Color(0xFF968677),
-    wallLight = Color(0xFFE2D7CB),
-    wallShade = Color(0xFF6E6054),
-    glass = Color(0x3DDCE1E6),
+    glass = Color(0x26DCE1E6),
     glassPressed = Color(0x4DFFFFFF),
     glassSelected = Color(0x52FFFFFF),
-    glassTile = Color(0x73FFFFFF),
-    glassSheen = Color(0x40FFFFFF),
+    glassTile = Color(0x5CFFFFFF),
     glassBorder = Color(0x8CFFFFFF),
     focusBorder = Color(0xF2FFFFFF),
-    dialog = Color(0xFFB0A59B),
+    dialog = Color(0xB8B0A59B),
     glow = Color(0xFFFFFCF6),
-    castShadow = Color(0x4A281C12),
     thumbTop = Color(0xFFF7F4F0),
     thumbBottom = Color(0xFFDAD5CF),
     ink = Color(0xFFFFFFFF),
