@@ -2,7 +2,7 @@
 
 Android公式の推奨アーキテクチャを学ぶための、いちばんシンプルな名刺アプリ。
 
-- UI: Jetpack Compose + Navigation Compose(3画面: 一覧 / 表示 / 編集)
+- UI: Jetpack Compose + Navigation Compose(3画面: 一覧 / 表示 / 編集)。Android 13 以上
 - 表示画面は横画面固定
 - 永続化: Room
 - 複数の名刺を保持。レイアウトは固定で、MVPでは文字のみ編集可能(背景色・文字色の変更は今後)
@@ -46,19 +46,21 @@ com.example.businesscard
 
 ## デザイン
 
-デザインシステム「Soft Glass」(グレージュ版)。グレージュの壁に、下端が光るすりガラスの部品が浮き、右下に影を落とす。共有されたUIキットの画像を忠実に再現したもの。トークンは `ui/theme/`、共通部品は `ui/component/`。詳細とボタン配置のルールは [DESIGN.md](DESIGN.md)。
+デザインシステム「Soft Glass」(グレージュ版)。グレージュの壁に、下端が光るすりガラスの部品が浮き、右下に影を落とす。共有されたUIキットの画像を再現したもの。
 
-最新の見た目は [`screenshots` ブランチ](../../tree/screenshots) で確認できる(pushごとにCIが自動生成)。
+光・影・透過は近似ではなく、AGSL シェーダー(GPU)と RenderEffect の実ブラーで計算して描く(`ui/glass/`)。そのため **Android 13 以上**。トークンは `ui/theme/`、共通部品は `ui/component/`。詳細とボタン配置のルールは [DESIGN.md](DESIGN.md)。
+
+最新の見た目は [`screenshots` ブランチ](../../tree/screenshots) で確認できる(pushごとにCIがAndroidエミュレータで撮影)。
 
 ## ビルドとテスト
 
 ```
 ./gradlew testDebugUnitTest   # ユニットテスト
 ./gradlew assembleDebug       # APK作成
-./gradlew testDebugUnitTest --tests '*ScreenshotTest' -PrecordScreenshots=true   # 画面のPNGを書き出す
+./gradlew assembleDebugAndroidTest && bash scripts/device-screenshots.sh   # 接続した端末で画面を撮る
 ```
 
-push時に GitHub Actions(`.github/workflows/ci.yml`)でも同じものを実行し、画面のPNGを `screenshots` ブランチに置く。
+push時に GitHub Actions(`.github/workflows/ci.yml`)でユニットテストとビルドを行い、別のジョブで Android エミュレータを起動して画面を撮り、`screenshots` ブランチに置く。
 
 ## 今後
 

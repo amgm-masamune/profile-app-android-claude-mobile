@@ -87,8 +87,8 @@ layout(color) uniform half4 albedoBottom;
 layout(color) uniform half4 lightColor;
 
 const float2 SHADOW_DIR = float2(0.92, 0.83);
-const float GLASS_T = 0.18;
-const float EMIT_GAIN = 14.0;
+const float GLASS_T = 0.08;
+const float EMIT_GAIN = 9.0;
 
 // 線光源(部品の光る辺)が壁の点 xy を照らす量。光源の上を13点で数値積分する
 // (光源は壁から elev 離れているので、点の間隔より遠く、粒にならない)
@@ -97,8 +97,8 @@ float emittedLight(float2 xy, float4 r, float elev, float top) {
     float cx = (r.x + r.z) * 0.5;
     float edgeY = mix(r.w, r.y, top);
     float faceY = mix(1.0, -1.0, top);
-    // 光源は壁に沿って下向き(上端なら上向き)、少し壁側を向いている
-    float3 facing = normalize(float3(0.0, faceY * 0.85, -0.53));
+    // 光源は壁側を向き、少し下向き(上端なら上向き)
+    float3 facing = normalize(float3(0.0, faceY * 0.7, -0.7));
     float lh = min(halfW * 0.74, 130.0 * dp);
     float e = 0.0;
     for (int k = 0; k < 13; k++) {
@@ -162,8 +162,8 @@ half4 main(float2 xy) {
         }
     }
 
-    float ambient = 0.42 * (1.0 - 0.55 * corner) * ao;
-    float key = 0.58 * (1.0 - 0.45 * corner) * keyVis;
+    float ambient = 0.38 * (1.0 - 0.55 * corner) * ao;
+    float key = 0.62 * (1.0 - 0.45 * corner) * keyVis;
     float sun = 0.45 * beam * sunVis;
     float3 col = albedo * (float3(ambient + key + sun) + toLin(lightColor) * emitted);
     float3 outc = toDisplay(toneMap(col)) + (hash12(xy) - 0.5) / 170.0;
@@ -211,7 +211,7 @@ half4 main(float2 fragCoord) {
 
     // すりガラスの拡散: 背後の色を少しくすませ、部屋の光を散らして少し明るくする
     col = mix(col, toLin(tint), float(tint.a));
-    col = col * 1.02 + 0.01;
+    col = col * 1.02 + 0.02;
 
     // 平らな上面に映る天井の明るさ(上ほど強い)
     float yN = clamp(p.y / size.y, 0.0, 1.0);
@@ -304,7 +304,7 @@ uniform float emitTop;
 uniform float hdr;
 layout(color) uniform half4 lightColor;
 
-const float GLARE = 0.11;
+const float GLARE = 0.1;
 
 half4 main(float2 p) {
     float2 halfS = size * 0.5;
@@ -317,16 +317,16 @@ half4 main(float2 p) {
     float lh = min(halfS.x * 0.74, 130.0 * dp);
     float profile = 1.0 - smoothstep(lh * 0.45, lh, abs(p.x - halfS.x));
 
-    float scatter = profile * (0.38 * exp(-dy / (8.0 * dp)) + 0.1 * exp(-dy / (26.0 * dp)));
+    float scatter = profile * (0.4 * exp(-dy / (6.0 * dp)) + 0.08 * exp(-dy / (22.0 * dp)));
     float rim = exp(-depth / (1.2 * dp)) * exp(-dy / max(size.y * 0.8, dp)) * 0.45;
     float core = profile * exp(-dy / (0.9 * dp)) * 1.8 * hdr;
 
-    // にじみは、鋭い芯(幅 約2dp)と長い裾(幅 約9dp)の2つの形を足したもの
+    // にじみは、鋭い芯(幅 約2dp)と裾(幅 約6dp)の2つの形を足したもの
     float gx = (p.x - halfS.x) / dp;
     float gy = (p.y - edgeY) / dp;
     float gl = lh * 0.72 / dp;
     float glare = 0.6 * lineGlare(gx, gy, -gl, gl, 0.35) * 0.59
-        + 0.4 * lineGlare(gx, gy, -gl, gl, 0.012) * 0.11;
+        + 0.4 * lineGlare(gx, gy, -gl, gl, 0.03) * 0.17;
 
     float light = ((scatter + rim + core) * inside + glare * GLARE) * emit;
     float3 col = toLin(lightColor) * light;

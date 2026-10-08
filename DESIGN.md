@@ -2,27 +2,50 @@
 
 ## 見本
 
-ユーザーが共有したUIキットの画像(2026-10-09)を忠実に再現している。
+ユーザーが共有したUIキットの画像(2026-10-09)を再現している。
 グレージュの壁に、すりガラスの部品(Launch / Secondary / Icon button + Text field / Dropdown / Toggle / Toggle(スイッチ) / Tabs / Premium plan)が浮いている写真風の一枚。
 
-この画像の特徴:
-
-- **壁**: グレージュ(灰色がかったベージュ)。左上から斜めに光が差し込み、左下と下中央は陰になっている。
-- **すりガラス**: 少し青みのある白の薄い膜(約24%)。壁の暖色を打ち消して灰色っぽく見える。角丸は控えめ(高さの約1/5。pillではない)。縁は1dpの白。
-- **下端の光**: 部品の下端の中央がいちばん白く光り、その光が壁にも漏れる。主ボタンほど強い。
-- **右下の影**: どの部品も同じだけ右下に影を落とす(壁から同じ距離に浮いているため)。ぼけた影ではなく、縁だけ柔らかい板状の影。
+- **壁**: グレージュ。左上から斜めに日差しが入り、左下は陰になっている。
+- **すりガラス**: 背後がぼけて透けて見える板。縁は細く磨かれ、光を受けて光る。
+- **発光**: 部品の下端に光源があり、ガラスの中で光が散り、壁も照らす。主ボタンほど強い。
+- **影**: どの部品も右下に板状の影を落とす(壁から同じ距離に浮いているため)。
 - **文字**: すべて白。太字(Launch / Premium plan)と細字(Secondary / Tabs)で階層を作る。
 
-一般的な呼び名は **Glassmorphism(グラスモーフィズム)** + **Soft UI**。本プロジェクトでは引き続き「Soft Glass」と呼ぶ。
+## 描き方: 「近似」ではなく、光を計算して描く
+
+Android 13 以上の **AGSL**(Android Graphics Shading Language。GPU で動くシェーダー)と **RenderEffect**(GPU のぼかし)で描く。
+実体は `ui/glass/`。光の計算は線形の光の量(リニアsRGB)で行い、最後に画面の色に戻す。
+
+```
+壁(GlassSceneHost)              ── WALL シェーダーで部屋の照明を計算 → GraphicsLayer に記録
+ │   環境光 + キーライト(左上) + 日差し(斜めの帯)
+ │   − 各部品の影(角丸長方形のSDFを光と逆向きにずらしたソフトシャドウ。すりガラスなので少し透ける)
+ │   + 各部品の光源が壁を照らす量(線光源。距離の2乗と入射角で弱まる。13点で積分)
+ │
+ ├ 浮いている部品(GlassLayer.Floating)
+ │   1. 壁の記録の「自分の後ろ」を写し取り、RenderEffect で実際にぼかす(すりガラスの拡散)
+ │   2. GLASS シェーダー: 厚い縁の屈折(レンズのように内側へ曲げる)、縁の陰影、鏡面反射、
+ │      フレネル反射、磨かれた縁の線、ざらつき
+ │   3. LIGHT シェーダーを加算合成: ガラス内部の散乱、縁の導光、光源の芯、グレア(光のにじみ)
+ │
+ ├ 重ねたタイル(GlassLayer.Inset … アイコンの四角・選択中のタブ)
+ │   TILE シェーダー(白い膜 + 縁の陰影 + つや)+ LIGHT
+ │
+ └ トグルのつまみ: BALL シェーダー(球として陰影)+ にじみ
+```
+
+- **グレア**は、強い光が目やカメラの中でにじむ現象。鋭い芯と裾の2つの形を、光源の線に沿って**式で厳密に積分**している(点を並べて足すと粒が見えるため)。
+- **トーンマッピング**: 明るすぎる部分は白に向けてなめらかに丸め、フィルムのように色が抜けて白っぽくなる。
+- **HDR**: Android 14 以上でHDR対応の画面なら、窓をHDRモードにして、光源の芯を白より明るく(最大3倍)光らせる(`rememberGlowHeadroom`)。
+- **ダイアログ**は別の窓なので壁を透かせない。代わりに OS の**窓の背面ぼかし**(Android 12+)で、後ろの画面全体を実際にぼかす。
 
 ## 原則
 
-1. **面はすりガラス**: 白の薄い膜 + 上端のつや + 白い縁。
-2. **光は下から**: 部品の下端の中央が光る。強さは3段階(Strong / Medium / Soft)。主操作だけ Strong。壁に光を漏らすのは壁から浮いている部品だけ(部品の中のタイルは内側だけが光る)。
-3. **影は右下**: 大きさに関係なく同じずれ(22dp, 20dp)とぼかし(7dp)。影は部品の外側だけに描き、ガラス越しに透けさせない。
-4. **すりガラスを重ねない**: 実ブラーが無いので、ガラスの上にガラスを浮かせると濁る。浮かせるボタンは使わず、リストの外に並べる。
-5. **直接色を書かない**: 画面のコードに `Color(0x...)` を書かず、トークン(`SoftGlassTheme.colors`)から使う。
-6. **ライト/ダークの切り替えは持たない**: 見本が一枚の写真なので、端末設定に関係なく同じ見た目。
+1. **光は計算で決める**: 影や光の形を手で描かない。部品の位置・大きさ・浮いている高さ(`SoftGlassLight.elevation`)から、シェーダーが計算する。
+2. **光るのは主操作だけ強く**: 光の強さは3段階(Strong / Medium / Soft)。主操作だけ Strong。
+3. **すりガラスを重ねない**: 浮いている部品の上に、別の浮いている部品を重ねない(重ねるならタイル=Inset)。
+4. **直接色を書かない**: 画面のコードに `Color(0x...)` を書かず、トークン(`SoftGlassTheme.colors`)から使う。
+5. **ライト/ダークの切り替えは持たない**: 見本が一枚の写真なので、端末設定に関係なく同じ見た目。
 
 ## トークン
 
@@ -30,22 +53,20 @@
 
 | 区分 | ファイル | 内容 |
 |---|---|---|
-| 色 | `SoftGlassColors.kt` | 壁、ガラス面、光、影、文字、危険色 |
-| 形・大きさ・光 | `SoftGlassShapes.kt` | `SoftGlassShapes`(control 11dp / tile 9dp / card 20dp / dialog 22dp / pill)、`SoftGlassSize`(部品の高さ56dp)、`SoftGlassLight`(影のずれ・ぼかし) |
+| 色 | `SoftGlassColors.kt` | 壁の地の色、ガラス、光、文字、危険色 |
+| 形・大きさ・光 | `SoftGlassShapes.kt` | `SoftGlassShapes`(control 11dp / tile 9dp / card 20dp / dialog 22dp / pill)、`SoftGlassSize`(部品の高さ56dp)、`SoftGlassLight`(浮いている高さ24dp、すりガラスのぼかし18dp) |
 | 文字 | `Type.kt` | `SoftGlassType`。書体は端末標準。全ての文字にごく弱い影 |
 | テーマ | `Theme.kt` | トークンを配り、Material3 の ColorScheme にも対応づける |
 
-主な色(見本の画像から拾った値):
+主な色:
 
 | トークン | 値 | 用途 |
 |---|---|---|
-| wallTop → wallBottom | #AA9B8E → #968677 | 壁の縦グラデーション |
-| wallLight / wallShade | #E2D7CB / #6E6054 | 斜めの光の帯 / 左下・下中央の陰 |
-| glass | #DCE1E6 の24% | 部品の膜(少し青みのある白) |
-| glassPressed / glassSelected / glassTile | 白30% / 白32% / 白45% | 押下・フォーカス / 選択中のタブ / アイコンのタイル |
+| wallTop → wallBottom | #AA9B8E → #968677 | 壁の地の色(実際の明るさは照明で決まる) |
+| glass | #DCE1E6 の20% | ぼかした背後に混ぜる、少し青みのある白 |
+| glassPressed / glassSelected / glassTile | 白30% / 白32% / 白36% | 押下・フォーカス / 選択中のタブ / アイコンのタイル |
 | glassBorder / focusBorder | 白55% / 白95% | 縁 / フォーカス中の縁 |
-| glow | #FFFCF6 | 下端の光 |
-| castShadow | #281C12 の29% | 右下の影 |
+| glow | #FFFCF6 | 光源の色 |
 | ink / inkMuted / inkFaint | 白 / 白78% / 白60% | 文字 / 補助 / プレースホルダ・非選択 |
 | danger | #FFB8AB | 削除・エラー |
 
@@ -55,7 +76,7 @@
 
 | 見本の部品 | コンポーネント | アプリでの使い道 |
 |---|---|---|
-| (全部品の土台) | `Modifier.glassSurface` | 影・漏れる光・膜・内側の光・縁・光る縁の6層を描く |
+| (全部品の土台) | `Modifier.glassSurface` | Floating(浮いた板)/ Inset(重ねたタイル) |
 | 壁 | `SoftGlassBackground` / `SoftGlassScaffold` | 全画面の背景 |
 | Launch / Premium plan | `GlassButton`(Primary) | 名刺を追加、保存 |
 | Secondary | `GlassButton`(Secondary) | ダイアログのキャンセル |
@@ -84,18 +105,24 @@
 
 ## 見た目の確認(スクリーンショット)
 
-`app/src/test/.../ui/ScreenshotTest.kt` が、カタログと各画面を Robolectric のネイティブ描画でPNGにする。
+GPU のシェーダーと RenderEffect は PC 上の疑似描画(Robolectric)では描けないので、**Androidの実際の描画**で撮る。
+
+- `app/src/androidTest/.../ui/GlassScreenshotTest.kt` がカタログと各画面を描いてPNGにする。
+- mainへのpushごとに GitHub Actions が **Androidエミュレータ(API 34 / Pixel 6)** でこれを実行し(`scripts/device-screenshots.sh`)、画像を **`screenshots` ブランチ**に置き直す。
+
+手元の端末で撮る場合:
 
 ```
-./gradlew testDebugUnitTest --tests '*ScreenshotTest' -PrecordScreenshots=true
-# → app/build/outputs/screenshots/*.png
+./gradlew assembleDebug assembleDebugAndroidTest
+bash scripts/device-screenshots.sh   # → shots/screenshots/*.png
 ```
-
-mainへのpushごとに GitHub Actions がこれを実行し、画像を **`screenshots` ブランチ**に置き直す(ブランチのREADMEに全画像が並ぶ)。
 
 ## 実装上の制約(2026-10-09 時点)
 
-- **実ブラーは使っていない**。すりガラスは「白の薄い膜 + つや + 縁」で近似。壁がなめらかなグラデーションなので見た目の差は小さい。背面のぼかしはAndroidでは `RenderEffect`(Android 12以上)が必要で、Composeの標準では面の背面だけをぼかせないため見送った。
-- 右下の影は `Paint.setShadowLayer` で描いている。ハードウェア描画では **Android 9(API 28)以上**で表示され、Android 8系(minSdk 26)では影が出ない(光と膜はそのまま)。
-- **白い文字のコントラストは低い**(明るいガラスの上で約2:1)。見本に忠実にした結果で、WCAGの基準(4.5:1)は満たさない。弱い文字の影で読みやすさを補っている。
+- **Android 13 以上**(minSdk 33)。AGSL が Android 13 からのため。
+- エミュレータ(ソフトウェアGPU)では描画が重く、1フレームに時間がかかる。実機のGPUでの滑らかさ(特にスクロール中)は **要確認**。
+- HDRで光源を白より明るくする表示は、HDR対応の実機でしか確かめられない(**要確認**)。
+- ダイアログの背面ぼかしは、端末が対応していない・省電力中などでは、ふつうの暗転になる。
+- **白い文字のコントラストは低い**(明るいガラスの上で約2:1)。見本に忠実にした結果で、WCAGの基準(4.5:1)は満たさない。
+- Android Studio のプレビューでは、シェーダーの描画が正しく出ないことがある(実機・エミュレータで確認する)。
 - フォントは端末標準。見本の書体(SF Pro 風)とは異なる。

@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.Color
  *
  * 見本(グレージュの壁に、すりガラスの部品が浮いている写真風のUIキット)から色を拾っている。
  *  - 壁: 左上から斜めに光が差し、左下が陰になったグレージュ
- *  - ガラス: 背後の壁を実際にぼかして透かし、少し青みのある白(15%)を混ぜる。押す・選ぶと白が濃くなる
+ *  - ガラス: 背後の壁を実際にぼかして透かし、少し青みのある白(20%)を混ぜる。押す・選ぶと白が濃くなる
  *  - 光: 部品の下端の光源が光る(光の計算は ui/glass/GlassShaders.kt)
  *  - 影: 左上のキーライトで、右下に影が落ちる(影の計算も同じシェーダー)
  *  - 文字: すべて白
@@ -46,7 +46,7 @@ data class SoftGlassColors(
 val GreigeSoftGlassColors = SoftGlassColors(
     wallTop = Color(0xFFAA9B8E),
     wallBottom = Color(0xFF968677),
-    glass = Color(0x26DCE1E6),
+    glass = Color(0x33DCE1E6),
     glassPressed = Color(0x4DFFFFFF),
     glassSelected = Color(0x52FFFFFF),
     glassTile = Color(0x5CFFFFFF),
