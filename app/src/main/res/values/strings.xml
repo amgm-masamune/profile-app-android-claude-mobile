@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">名刺</string>
+    <string name="list_title">名刺一覧</string>
+    <string name="list_empty">名刺がありません。右下の＋から追加してください。</string>
+    <string name="add_card">名刺を追加</string>
+    <string name="edit_title_new">名刺を追加</string>
+    <string name="edit_title_edit">名刺を編集</string>
+    <string name="back">戻る</string>
+    <string name="edit">編集</string>
+    <string name="delete">削除</string>
+    <string name="save">保存</string>
+    <string name="label_name">氏名</string>
+    <string name="label_company">会社名</string>
+    <string name="label_title">肩書</string>
+    <string name="label_phone">電話番号</string>
+    <string name="label_email">メールアドレス</string>
+    <string name="error_name_required">氏名を入力してください</string>
+</resources>
