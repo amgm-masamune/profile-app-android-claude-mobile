@@ -151,7 +151,7 @@ internal fun Modifier.floatingGlass(
     val scene = LocalGlassScene.current
         ?: return insetGlass(shape, tint, emit, emitTop, rim, rimWidth, lightColor)
     val hdr = LocalGlowHeadroom.current
-    val density = LocalDensity.current
+    val localDensity = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val key = remember { Any() }
     val layer = rememberGraphicsLayer()
@@ -177,7 +177,7 @@ internal fun Modifier.floatingGlass(
             positionInRoot = coordinates.positionInRoot()
             val element = GlassElement(
                 bounds = coordinates.boundsInRoot(),
-                cornerRadius = shape.cornerRadius(coordinates.size.toSize(), layoutDirection, density),
+                cornerRadius = shape.cornerRadius(coordinates.size.toSize(), layoutDirection, localDensity),
                 elevationDp = elevation.value,
                 emit = currentEmit,
                 emitTop = currentEmitTop,
