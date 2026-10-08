@@ -63,7 +63,7 @@ Android 13 以上の **AGSL**(Android Graphics Shading Language。GPU で動く�
 | トークン | 値 | 用途 |
 |---|---|---|
 | wallTop → wallBottom | #AA9B8E → #968677 | 壁の地の色(実際の明るさは照明で決まる) |
-| glass | #DCE1E6 の20% | ぼかした背後に混ぜる、少し青みのある白 |
+| glass | #DCE1E6 の25% | ぼかした背後に混ぜる、少し青みのある白 |
 | glassPressed / glassSelected / glassTile | 白30% / 白32% / 白36% | 押下・フォーカス / 選択中のタブ / アイコンのタイル |
 | glassBorder / focusBorder | 白55% / 白95% | 縁 / フォーカス中の縁 |
 | glow | #FFFCF6 | 光源の色 |

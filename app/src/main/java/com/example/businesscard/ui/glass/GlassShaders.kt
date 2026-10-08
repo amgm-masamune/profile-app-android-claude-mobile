@@ -211,7 +211,7 @@ half4 main(float2 fragCoord) {
 
     // すりガラスの拡散: 背後の色を少しくすませ、部屋の光を散らして少し明るくする
     col = mix(col, toLin(tint), float(tint.a));
-    col = col * 1.02 + 0.02;
+    col = col * 1.02 + 0.03;
 
     // 平らな上面に映る天井の明るさ(上ほど強い)
     float yN = clamp(p.y / size.y, 0.0, 1.0);
