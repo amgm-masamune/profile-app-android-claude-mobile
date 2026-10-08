@@ -111,7 +111,7 @@ class GlassScreenshotTest {
         )
     }
 
-    /** 主ボタンを押し込んだまま撮る(沈み込み・影の縮み・指の所の光の確認用) */
+    /** 主ボタンを押したまま撮る(指へ寄る動き・影の伸び・指の所の光の確認用) */
     @Test
     fun catalogPressed() {
         composeRule.setContent { BusinessCardTheme { SoftGlassCatalog() } }

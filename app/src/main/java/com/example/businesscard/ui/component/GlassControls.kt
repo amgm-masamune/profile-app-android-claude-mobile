@@ -67,7 +67,7 @@ fun GlassLabel(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * すりガラスのボタン。押すと壁へ沈み(少し小さくなり、影が縮む)、指の所が光り、光源が強まる。
+ * すりガラスのボタン。押すと指に吸い寄せられて手前へ浮き(少し大きくなり、影が伸びる)、指の所が光り、光源が強まる。
  * 離すとばねで戻る。押す・離すで短く振動し、確定するとクリック音(端末の設定に従う)。
  */
 @Composable
@@ -100,7 +100,7 @@ fun GlassButton(
                 interactionSource = interaction,
             )
             .clip(SoftGlassShapes.control)
-            // 押した反応はガラス自身(沈み込み・指の所の光)で返すので、標準の波紋は出さない
+            // 押した反応はガラス自身(指へ寄る動き・指の所の光)で返すので、標準の波紋は出さない
             .clickable(
                 interactionSource = interaction,
                 indication = null,

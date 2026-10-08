@@ -21,8 +21,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -70,7 +72,7 @@ enum class GlassLayer {
  * すりガラスの部品を描く Modifier。描き方の中身は `ui/glass/`(AGSLシェーダーと RenderEffect)。
  *
  * [interactionSource] を渡すと、触ったときに物として反応する:
- * 押すと壁へ沈み(少し小さくなり、影が縮む)、触った所が光り、離すとばねで戻る。
+ * 押すと指に吸い寄せられて手前へ浮き(少し大きくなり、影が伸びる)、触った所が光り、離すとばねで戻る。
  * [haptics] が true なら、押す・離すで短く振動する。
  *
  * 光の強さ・浮く高さ・色が変わるときは、パッと切り替えずに短く移り変わる。
@@ -107,14 +109,23 @@ fun Modifier.glassSurface(
         null
     }
     val pressDepth = press?.depthValue ?: 0f
-    val pressTravelPx = with(LocalDensity.current) { SoftGlassMotion.pressTravel.toPx() }
+    val pressGrowPx = with(LocalDensity.current) { SoftGlassMotion.pressGrow.toPx() }
     val pressed = if (press != null) {
         Modifier.graphicsLayer {
-            // 壁へ沈むぶん、遠ざかって少し小さく見える(大きな部品ほど縮む割合は小さい)
+            // 指へ寄ってくるぶん、近づいて少し大きく見える(大きな部品ほど大きくなる割合は小さい)。
+            // 大きくなる中心は触った所。指の下の点は動かず、板が指に貼り付いたまま寄ってくる
             val longest = maxOf(size.width, size.height, 1f)
-            val s = (1f - pressTravelPx / longest * pressDepth).coerceAtLeast(SoftGlassMotion.MIN_PRESS_SCALE)
+            val s = (1f + pressGrowPx / longest * pressDepth)
+                .coerceIn(2f - SoftGlassMotion.MAX_PRESS_SCALE, SoftGlassMotion.MAX_PRESS_SCALE)
             scaleX = s
             scaleY = s
+            val point = press.point
+            if (point.isSpecified && size.width > 0f && size.height > 0f) {
+                transformOrigin = TransformOrigin(
+                    (point.x / size.width).coerceIn(0f, 1f),
+                    (point.y / size.height).coerceIn(0f, 1f),
+                )
+            }
         }
     } else {
         Modifier

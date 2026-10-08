@@ -11,7 +11,6 @@ import android.view.HapticFeedbackConstants
 import android.view.SoundEffectConstants
 import android.view.View
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -24,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.example.businesscard.ui.theme.SoftGlassMotion
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -87,7 +88,7 @@ fun rememberGlassFeedback(): GlassFeedback {
 /**
  * 押されたガラスの状態。指の動きに合わせてアニメーションする。
  *
- * - [depth]: 0 = 休んでいる、1 = 壁へ押し込まれている。離すとばねで戻り、少しだけ負(手前)へ行き過ぎる
+ * - [depth]: 0 = 休んでいる、1 = 指に吸い寄せられて手前へ浮いている。離すとばねで戻り、少しだけ負(壁側)へ行き過ぎる
  * - [touch]: 触った所の光の強さ 0..1
  * - [point]: 触った位置(部品の左上からのピクセル)
  */
@@ -99,11 +100,17 @@ class GlassPress internal constructor() {
 
     /** いまの押し込みの深さ(読むと、変わるたびに読んだ所が描き直される) */
     val depthValue: Float get() = depth.value
+
+    /** 押し始めの動き [pressIn] が、指へ寄りきる(いちど 1 に届く)か、止められるまで待つ。 */
+    internal suspend fun awaitReached(pressIn: Job?) {
+        if (pressIn == null) return
+        snapshotFlow { depth.value >= 0.98f || !pressIn.isActive }.first { it }
+    }
 }
 
 /**
  * [interactionSource](押す・離す・取り消し)を見て、[GlassPress] を動かす。
- * 素早く叩いても押し込みが目に見えるよう、押し込みが終わってから戻し始める。
+ * 素早く叩いても吸い付く動きが目に見えるよう、指へ寄りきる(いちど 1 に届く)のを待ってから戻し始める。
  */
 @Composable
 fun rememberGlassPress(interactionSource: InteractionSource, feedback: GlassFeedback?): GlassPress {
@@ -115,20 +122,18 @@ fun rememberGlassPress(interactionSource: InteractionSource, feedback: GlassFeed
                 is PressInteraction.Press -> {
                     press.point = interaction.pressPosition
                     feedback?.pressDown()
-                    pressIn = launch {
-                        press.depth.animateTo(1f, tween(SoftGlassMotion.PRESS_IN_MILLIS, easing = FastOutSlowInEasing))
-                    }
+                    pressIn = launch { press.depth.animateTo(1f, SoftGlassMotion.pressSpring) }
                     launch { press.touch.animateTo(1f, tween(SoftGlassMotion.TOUCH_IN_MILLIS)) }
                 }
                 is PressInteraction.Release -> {
                     feedback?.pressUp()
                     val pressing = pressIn
                     launch {
-                        pressing?.join()
+                        press.awaitReached(pressing)
                         press.depth.animateTo(0f, SoftGlassMotion.releaseSpring)
                     }
                     launch {
-                        pressing?.join()
+                        press.awaitReached(pressing)
                         press.touch.animateTo(0f, tween(SoftGlassMotion.TOUCH_FADE_MILLIS))
                     }
                 }

@@ -155,7 +155,7 @@ internal fun GlassSceneHost(
  *    RenderEffect で「実際にぼかす → ガラスのシェーダーで屈折・陰影・つやを付ける」
  * 3. 光源の光(内部の散乱・縁の導光・芯・グレア)と、押した所の光を加算合成で重ねる
  *
- * 押す([press])と、浮いている高さが下がって影が縮み(壁へ沈む)、光源が強まる。
+ * 押す([press])と、指に吸い寄せられて浮いている高さが上がり(影が伸びる)、光源が強まる。
  * 画面ができた直後は、上から順に壁から浮き上がり、光源が灯る。
  *
  * 壁の無い場所(ダイアログの窓の中など)では、[insetGlass] と同じ描き方になる。
@@ -203,10 +203,11 @@ internal fun Modifier.floatingGlass(
     // 光源は浮き上がりきる直前に灯る
     val powered = ((liftNow - 0.55f) / 0.45f).coerceIn(0f, 1.2f)
     val emitNow = (emit + (SoftGlassMotion.PRESSED_GLOW - emit) * depth.coerceIn(0f, 1f)) * powered
-    val elevationNow = elevation.value * (1f - SoftGlassMotion.PRESS_SINK * depth) * liftNow
-    // 光源が壁に近づくと、照らされる所は距離の2乗で明るくなる。そのままだと白く飛ぶので、
-    // 近づいたぶんを一部だけ打ち消す(光の輪は小さく・少し明るくなる)
-    val nearness = (elevationNow / elevation.value.coerceAtLeast(1f)).coerceIn(0.05f, 1.5f)
+    // 押すと指に吸い寄せられて手前へ浮く(影が伸びてぼけ、壁の光だまりは広く淡くなる)
+    val elevationNow = elevation.value * (1f + SoftGlassMotion.PRESS_LIFT * depth) * liftNow
+    // 光源が壁に近づくと(登場の途中・離したあとの行き過ぎ)、照らされる所は距離の2乗で明るくなる。
+    // そのままだと白く飛ぶので、近づいたぶんを一部だけ打ち消す。遠ざかるときは打ち消さない
+    val nearness = (elevationNow / elevation.value.coerceAtLeast(1f)).coerceIn(0.05f, 1f)
     val emitOnWall = emitNow * nearness * kotlin.math.sqrt(nearness)
     val opacity = (liftNow * 2.5f).coerceIn(0f, 1f)
     val currentEmit by rememberUpdatedState(emitOnWall)

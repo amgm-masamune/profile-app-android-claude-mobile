@@ -69,8 +69,10 @@ class Scene:
     def px(self, v):
         return v * self.d
 
-    def add(self, x, y, w, h, rad=11, emit=1.0, top=0, fill=GLASS, rim=BORDER, rw=1, elev=24, text=None, bold=False, size=19):
-        self.floating.append(dict(r=(x, y, w, h), rad=rad, emit=emit, top=top, fill=fill, rim=rim, rw=rw, elev=elev))
+    def add(self, x, y, w, h, rad=11, emit=1.0, top=0, fill=GLASS, rim=BORDER, rw=1, elev=24, text=None, bold=False, size=19,
+            touch=None, touch_amount=0.0):
+        self.floating.append(dict(r=(x, y, w, h), rad=rad, emit=emit, top=top, fill=fill, rim=rim, rw=rw, elev=elev,
+                                  touch=touch, touch_amount=touch_amount))
         if text:
             self.texts.append((text, x + w / 2, y + h / 2 + size * 0.36, size, 700 if bold else 400, 1.0, 'c'))
 
@@ -86,7 +88,8 @@ class Scene:
             x, y, w, h = e['r']
             rects[i * 4:i * 4 + 4] = [x * d, y * d, (x + w) * d, (y + h) * d]
             emit = e['emit'] * (1 if 'pool' in stages else 0)
-            near = e['elev'] / 24.0
+            # アプリと同じ: 壁に近づいたぶんだけ照り返しを一部打ち消す(遠ざかるときは打ち消さない)
+            near = min(e['elev'] / 24.0, 1.0)
             props[i * 4:i * 4 + 4] = [e['rad'] * d, e['elev'], emit * near * near ** 0.5, e['top']]
             extra[i * 4] = 1.0
         wall = shader('WALL', dict(size=[self.w, self.h], dp=d, count=len(els), rects=rects, props=props, extra=extra,
@@ -128,7 +131,8 @@ class Scene:
             if 'emission' in stages and e['emit'] > 0:
                 gl = 48 * d
                 l = shader('LIGHT', dict(size=[w, h], radius=e['rad'] * d, dp=d, emit=e['emit'], emitTop=e['top'], hdr=1.0,
-                                         lightColor=argb(GLOW), touch=[w / 2, h / 2], touchAmount=0.0, touchRadius=10 * d))
+                                         lightColor=argb(GLOW), touch=[(e['touch'] or (0, 0))[0] * d, (e['touch'] or (0, 0))[1] * d],
+                                         touchAmount=e['touch_amount'], touchRadius=(10 + 16 * e['touch_amount']) * d))
                 oc.save(); oc.translate(x, y)
                 oc.drawRect(skia.Rect.MakeXYWH(-gl, -gl, w + 2 * gl, h + 2 * gl), skia.Paint(Shader=l, BlendMode=skia.BlendMode.kPlus))
                 oc.restore()

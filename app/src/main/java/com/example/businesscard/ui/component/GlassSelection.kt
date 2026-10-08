@@ -50,7 +50,7 @@ import com.example.businesscard.ui.theme.SoftGlassType
 import kotlin.math.abs
 
 /**
- * 見本の「Dropdown」。すりガラスの欄の右端に下向きの山形。押すと沈み、選択肢のメニューが開く。
+ * 見本の「Dropdown」。すりガラスの欄の右端に下向きの山形。押すと指へ寄り、選択肢のメニューが開く。
  * 開くと山形が上を向く。選び直すと小さく振動する。
  */
 @Composable
