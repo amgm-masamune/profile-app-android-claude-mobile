@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
@@ -109,11 +110,32 @@ class GlassScreenshotTest {
         composeRule.mainClock.advanceTimeBy(500)
         composeRule.waitForIdle()
 
-        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        val bitmap = captureRoot()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val dir = File(context.filesDir, "screenshots").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { out ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
         }
+    }
+
+    /**
+     * 画面を画像にする。エミュレータのソフトウェアGPUではシェーダーの描画に時間がかかり、
+     * 撮影の待ち時間(2秒)を超えることがあるので、何度かやり直す。
+     */
+    private fun captureRoot(): Bitmap {
+        repeat(CAPTURE_ATTEMPTS) { attempt ->
+            try {
+                return composeRule.onRoot().captureToImage().asAndroidBitmap()
+            } catch (e: ComposeTimeoutException) {
+                if (attempt == CAPTURE_ATTEMPTS - 1) throw e
+                composeRule.waitForIdle()
+                Thread.sleep(1_000)
+            }
+        }
+        error("unreachable")
+    }
+
+    private companion object {
+        const val CAPTURE_ATTEMPTS = 4
     }
 }
