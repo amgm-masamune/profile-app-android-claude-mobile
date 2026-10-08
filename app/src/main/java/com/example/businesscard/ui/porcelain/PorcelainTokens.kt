@@ -164,6 +164,16 @@ data class PorcelainElevation(
             contactDy = 2.dp, contactBlur = 4.dp, contactAlpha = 0.18f,
         )
 
+        /**
+         * ダイアログ。暗くした画面の上に出るので、左上の白い光は弱くする
+         * (強いと、暗い背景の上で白い後光のように見える)
+         */
+        val Dialog = PorcelainElevation(
+            lightDx = (-2).dp, lightDy = (-2).dp, lightBlur = 6.dp, lightAlpha = 0.12f,
+            dropDx = 4.dp, dropDy = 10.dp, dropBlur = 22.dp, dropAlpha = 0.4f,
+            contactDy = 2.dp, contactBlur = 4.dp, contactAlpha = 0.18f,
+        )
+
         /** パネル(壁から大きく浮いている。見本では右下に長く濃い影) */
         val Panel = PorcelainElevation(
             lightDx = (-2).dp, lightDy = (-2).dp, lightBlur = 10.dp, lightAlpha = 0.35f,

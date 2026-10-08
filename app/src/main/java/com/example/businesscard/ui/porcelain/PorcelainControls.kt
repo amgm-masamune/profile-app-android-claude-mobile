@@ -334,7 +334,7 @@ fun PorcelainDialog(
             Column(
                 modifier = Modifier
                     .widthIn(max = 420.dp)
-                    .porcelainSurface(shape = PorcelainShapes.dialog, tone = PorcelainTone.Light, elevation = PorcelainElevation.Card)
+                    .porcelainSurface(shape = PorcelainShapes.dialog, tone = PorcelainTone.Light, elevation = PorcelainElevation.Dialog)
                     .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {

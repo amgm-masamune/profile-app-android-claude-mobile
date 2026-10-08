@@ -52,6 +52,28 @@ com.example.businesscard
 
 最新の見た目は [`screenshots` ブランチ](../../tree/screenshots) で確認できる(pushごとにCIがAndroidエミュレータで撮影)。
 
+### 見た目の切り替え
+
+見た目は2種類あり、一覧の右上のボタンから切り替える(選んだ見た目は DataStore に保存)。
+
+| 見た目 | 中身 | 描き方 |
+|---|---|---|
+| Edgelit(すりガラス) | `ui/glass/` `ui/component/` `ui/theme/` | 上記 |
+| Porcelain(陶器、仮称) | `ui/porcelain/` | 明るいグレーの板に、柔らかい影の丸いボタン。板の中ほどを波打つ板が横切り、その縁から光がにじむ(AGSL)。影は BlurMaskFilter |
+
+画面(一覧・表示・編集)は `ui/designsystem/` の共通部品(`AppButton` など)だけを使い、部品が見た目ごとの実装に振り分ける。
+見た目を増やすときは `ThemeStyle` に種類を足し、`ui/designsystem/` の分岐を足す(画面は変えなくてよい)。
+
+```
+ui/designsystem/   App* の共通部品と、見た目ごとの余白(AppTheme.dimens)
+ui/porcelain/      Porcelain のトークン・部品・シェーダー・カタログ
+ui/settings/       見た目を選ぶダイアログ
+domain/model/ThemeStyle.kt, domain/repository/UserPreferencesRepository.kt
+data/preferences/  DataStore の実装
+```
+
+`theme/**` ブランチの見た目は `screenshots-<ブランチ名>` ブランチに置かれる(例: `screenshots-theme-porcelain`)。
+
 ## ビルドとテスト
 
 ```
