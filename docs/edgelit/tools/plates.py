@@ -79,7 +79,7 @@ save(s, '05-glow-levels.png')
 
 # ---- 浮いている高さ ----
 sc = g.Scene(412, 128)
-for i, (lab, el) in enumerate([('押し込み 8dp', 8), ('通常 24dp', 24), ('フォーカス 30dp', 30)]):
+for i, (lab, el) in enumerate([('登場の途中 8dp', 8), ('通常 24dp', 24), ('押下中 約31dp', 31.2)]):
     x = 16 + i * 132
     sc.label(lab, x, 30, size=14)
     sc.add(x, 44, 112, 56, emit=0.7, elev=el, text='Aa')
@@ -87,5 +87,5 @@ img = sc.render()
 s, c = canvas(img.width() + 96, img.height() + 250)
 g.draw_text(c, '浮いている高さ(elevation)と影', 48, 82, 36, INK, 700, shadow=False)
 rounded_image(c, img, 48, 120)
-g.draw_wrapped(c, '影は高さに比例して右下へずれ、壁から離れるほどぼける。押すと沈んで影が寄り、光だまりが小さく明るくなる。', 48, img.height() + 172, img.width(), 24, MUTED)
+g.draw_wrapped(c, '影は高さに比例して右下へずれ、壁から離れるほどぼける。押すと板は指へ吸い寄せられて手前へ浮き(入力欄のフォーカスは 30dp)、影が伸び、光だまりは広く淡くなる。', 48, img.height() + 172, img.width(), 24, MUTED)
 save(s, '06-elevation.png')

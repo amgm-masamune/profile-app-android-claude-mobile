@@ -108,7 +108,7 @@ sc2 = 1.05
 w10, h10 = src.width() * sc2, src.height() * sc2
 s, c = canvas(int(pad * 2 + w10 * 2 + 40), int(pad + 80 + h10 + 120))
 g.draw_text(c, '押す前と押した後(エミュレータで撮影)', pad, pad + 34, 36, INK, 700, shadow=False)
-for i, (img, lab, desc) in enumerate([(cat, '休んでいる', '浮く高さ 24dp'), (pressed, '押し込み中', '約8dp に沈み、影が寄り、指の所が光る')]):
+for i, (img, lab, desc) in enumerate([(cat, '休んでいる', '浮く高さ 24dp'), (pressed, '押している間', '指へ寄って約31dp。影が伸び、指の所が光る')]):
     x = pad + i * (w10 + 40); y = pad + 80
     draw_img(c, img, x, y, w10, h10, src, r=18)
     g.draw_text(c, lab, x, y + h10 + 46, 28, INK, 700, shadow=False)
@@ -122,7 +122,7 @@ bg = wall_sc.render(('wall',))
 s, c = canvas(W1, H1)
 c.drawImage(bg, 0, 0)
 g.draw_text(c, 'Edgelit', 64, 130, 96, (1, 1, 1, 1), 700)
-g.draw_text(c, '縁灯(ふちあかり) — 縁から灯り、触れると沈む、すりガラス', 68, 196, 32, (1, 1, 1, 0.92), 500)
+g.draw_text(c, '縁灯(ふちあかり) — 縁から灯り、指に吸い付く、すりガラス', 68, 196, 32, (1, 1, 1, 0.92), 500)
 phones = [('list.png', 0), ('catalog.png', 1), ('edit.png', 2)]
 pw = 340; ph = pw * 2209 / 1080
 for name, i in phones:

@@ -149,10 +149,21 @@ c.drawRRect(skia.RRect.MakeRectXY(skia.Rect.MakeLTRB(px0, py0, px1, py1), 8, 8),
 glowp = skia.GradientShader.MakeRadial(skia.Point(px0 + 10, py1), 60, [skia.Color4f(1, 0.98, 0.9, 1).toColor(), skia.Color4f(1, 0.98, 0.9, 0).toColor()])
 c.drawCircle(px0 + 10, py1, 60, skia.Paint(Shader=glowp))
 c.drawCircle(px0 + 10, py1 - 4, 7, P((1, 1, 1), 1))
-g.draw_text(c, 'すりガラスの板', px1 + 24, py0 + 30, 28, INK, 700, shadow=False)
-g.draw_wrapped(c, '背後の壁(と自分の影)を実際にぼかして透かす。縁は丸く磨かれ、光を受けて光る', px1 + 24, py0 + 70, 380, 22, MUTED)
-g.draw_text(c, '縁の光源(下端)', px1 + 24, py1 + 10, 26, INK, 700, shadow=False)
-g.draw_wrapped(c, 'ガラスの中で光が散り、縁を伝い、壁を照らす(光だまり)', px1 + 24, py1 + 46, 380, 22, MUTED)
+# 押したときの板(指へ吸い寄せられて手前へ浮く: 24 → 約31dp)
+lift_px = (px0 - wallx) / 24 * 7
+ghost = skia.Paint(Color4f=skia.Color4f(*INK[:3], 0.55), AntiAlias=True, Style=skia.Paint.kStroke_Style, StrokeWidth=2,
+                   PathEffect=skia.DashPathEffect.Make([7, 6], 0))
+c.drawRRect(skia.RRect.MakeRectXY(skia.Rect.MakeLTRB(px0 + lift_px, py0 - 4, px1 + lift_px, py1 + 4), 8, 8), ghost)
+ay = (py0 + py1) / 2
+c.drawLine(px1 + 6, ay, px1 + lift_px - 10, ay, arrow_p := P(INK, 1, 2.5, True))
+c.drawLine(px1 + lift_px - 10, ay, px1 + lift_px - 22, ay - 8, arrow_p); c.drawLine(px1 + lift_px - 10, ay, px1 + lift_px - 22, ay + 8, arrow_p)
+tx0 = px1 + lift_px + 28
+g.draw_text(c, 'すりガラスの板', tx0, py0 + 30, 28, INK, 700, shadow=False)
+g.draw_wrapped(c, '背後の壁(と自分の影)を実際にぼかして透かす。縁は丸く磨かれ、光を受けて光る', tx0, py0 + 70, 360, 22, MUTED)
+g.draw_text(c, '押すと指へ寄る(点線)', tx0, ay + 20, 24, INK, 700, shadow=False)
+g.draw_text(c, '24 → 約31dp、影が伸びる', tx0, ay + 54, 22, MUTED, 400, shadow=False)
+g.draw_text(c, '縁の光源(下端)', tx0, py1 + 10, 26, INK, 700, shadow=False)
+g.draw_wrapped(c, 'ガラスの中で光が散り、縁を伝い、壁を照らす(光だまり)', tx0, py1 + 46, 360, 22, MUTED)
 # 高さの寸法
 arrow = P(INK, 1, 2.5, True)
 c.drawLine(wallx, 260, px0, 260, arrow)
@@ -165,5 +176,5 @@ c.drawCircle(vx, vy, 34, P(INK, 1, 3, True)); c.drawCircle(vx - 12, vy, 9, P(INK
 c.drawLine(vx - 40, vy, px1 + 30, vy - 20, skia.Paint(Color4f=skia.Color4f(*INK), AntiAlias=True, StrokeWidth=2, Style=skia.Paint.kStroke_Style,
                                                        PathEffect=skia.DashPathEffect.Make([4, 8], 0)))
 g.draw_text(c, '見る人(画面)', vx - 70, vy + 70, 24, INK, 700, shadow=False)
-g.draw_wrapped(c, '押すと板は壁へ沈み(24 → 約8dp)、影が板に寄って、光だまりは小さく明るくなる。', pad, 920, W3 - pad * 2, 24, MUTED)
+g.draw_wrapped(c, '押すと板は指に吸い寄せられて手前へ浮き(24 → 約31dp)、影が伸びてぼけ、光だまりは広く淡くなる。離すと壁側へ戻る。', pad, 920, W3 - pad * 2, 24, MUTED)
 save(s, '03-side-view.png')
