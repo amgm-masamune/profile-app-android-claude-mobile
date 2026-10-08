@@ -64,8 +64,8 @@ float3 toDisplay(float3 c) {
     return float3(fromLinearSrgb(half3(c)));
 }
 
-// 部屋のキーライトの向き(左上・手前から差す)。影はこの逆、右下へ落ちる
-const float3 KEY = float3(-0.55, -0.5, 0.6);
+// 部屋のキーライトの向き(lightDir)は uniform で受け取る。ふだんは左上・手前から差し(影は右下へ落ちる)、
+// 端末を傾けると少し動く
 """
 
     /**
@@ -85,8 +85,8 @@ uniform float4 props[16];
 layout(color) uniform half4 albedoTop;
 layout(color) uniform half4 albedoBottom;
 layout(color) uniform half4 lightColor;
+uniform float3 lightDir;
 
-const float2 SHADOW_DIR = float2(0.92, 0.83);
 const float GLASS_T = 0.08;
 const float EMIT_GAIN = 9.0;
 
@@ -127,6 +127,10 @@ half4 main(float2 xy) {
     float across = dot(xy - size * float2(0.3, 0.4), beamNormal) / dp;
     float beam = 1.0 - smoothstep(25.0, 95.0, abs(across));
 
+    // 影は光と逆向きに、浮いている高さに比例してずれる
+    float3 l = normalize(lightDir);
+    float2 shadowDir = -l.xy / l.z;
+
     float keyVis = 1.0;
     float sunVis = 1.0;
     float ao = 1.0;
@@ -149,7 +153,7 @@ half4 main(float2 xy) {
         }
         float fade = 1.0 - smoothstep(-32.0 * dp, 0.0, reach);
         // 影: 部品の形を光と逆向きにずらし、壁からの距離に比例してぼかす
-        float sdShadow = sdRoundRect(xy - ctr - SHADOW_DIR * elev, halfS, rad);
+        float sdShadow = sdRoundRect(xy - ctr - shadowDir * elev, halfS, rad);
         float penKey = 0.15 * elev + dp;
         keyVis *= 1.0 - (1.0 - smoothstep(-penKey, penKey, sdShadow)) * (1.0 - GLASS_T);
         float penSun = 0.08 * elev + dp;
@@ -184,6 +188,7 @@ uniform float dp;
 uniform float rimWidth;
 layout(color) uniform half4 tint;
 layout(color) uniform half4 rimColor;
+uniform float3 lightDir;
 
 half4 main(float2 fragCoord) {
     float2 p = fragCoord - float2(margin);
@@ -218,7 +223,7 @@ half4 main(float2 fragCoord) {
     col += (1.0 - smoothstep(0.0, 0.5, yN)) * 0.035;
 
     // 縁の陰影: 光に向いた左上の縁は明るく、右下の縁は暗い
-    float3 l = normalize(KEY);
+    float3 l = normalize(lightDir);
     col *= 1.0 + (dot(n, l) - l.z) * 0.7;
     // 鏡面反射(つや)とフレネル反射(浅い角度ほどよく映り込む)
     float3 h = normalize(l + float3(0.0, 0.0, 1.0));
@@ -249,6 +254,7 @@ uniform float dp;
 uniform float rimWidth;
 layout(color) uniform half4 fill;
 layout(color) uniform half4 rimColor;
+uniform float3 lightDir;
 
 half4 main(float2 p) {
     float2 halfS = size * 0.5;
@@ -265,7 +271,7 @@ half4 main(float2 p) {
     float edge = (1.0 - t) * (1.0 - t);
     float2 g = sdRoundRectNormal(c, halfS, rad);
     float3 n = normalize(float3(g * edge * 1.6, 1.0));
-    float3 l = normalize(KEY);
+    float3 l = normalize(lightDir);
     float3 h = normalize(l + float3(0.0, 0.0, 1.0));
 
     float yN = clamp(p.y / size.y, 0.0, 1.0);
@@ -289,7 +295,7 @@ half4 main(float2 p) {
 """
 
     /**
-     * 光源の光。加算合成(BlendMode.Plus)で重ねる。
+     * 光源の光と、指で押した所の光。加算合成(BlendMode.Plus)で重ねる。
      * 1. ガラス内部の散乱: すりガラスの中で光が散って、光源の近くがぼうっと明るい
      * 2. 縁の導光: ガラスの縁は光を閉じ込めて運ぶので、縁が細く光る
      * 3. 光源そのもの: 縁に沿ったごく細く強い光。HDR対応の画面では白より明るい
@@ -303,6 +309,9 @@ uniform float emit;
 uniform float emitTop;
 uniform float hdr;
 layout(color) uniform half4 lightColor;
+uniform float2 touch;
+uniform float touchAmount;
+uniform float touchRadius;
 
 const float GLARE = 0.1;
 
@@ -329,6 +338,11 @@ half4 main(float2 p) {
         + 0.4 * lineGlare(gx, gy, -gl, gl, 0.03) * 0.17;
 
     float light = ((scatter + rim + core) * inside + glare * GLARE) * emit;
+
+    // 指で押した所: すりガラスの中で光がふわっと広がり、縁まで届いた光が少しにじむ
+    float td = length(p - touch) / max(touchRadius, 1.0);
+    float touchLight = touchAmount * (0.32 * exp(-td * td * 1.6) * inside + 0.05 / (1.0 + td * td * 3.0));
+    light += touchLight;
     float3 col = toLin(lightColor) * light;
     float a = clamp(max(col.r, max(col.g, col.b)), 0.0, 1.0);
     return half4(half3(col), half(a));
@@ -346,6 +360,7 @@ uniform float hdr;
 layout(color) uniform half4 topColor;
 layout(color) uniform half4 bottomColor;
 layout(color) uniform half4 lightColor;
+uniform float3 lightDir;
 
 half4 main(float2 p) {
     float2 c = p - size * 0.5;
@@ -358,7 +373,7 @@ half4 main(float2 p) {
         }
         float2 q = c / r;
         float3 n = float3(q, sqrt(max(1.0 - dot(q, q), 0.0)));
-        float3 l = normalize(KEY);
+        float3 l = normalize(lightDir);
         float3 h = normalize(l + float3(0.0, 0.0, 1.0));
         float3 base = mix(toLin(topColor), toLin(bottomColor), q.y * 0.5 + 0.5);
         float3 col = base * (0.62 + 0.38 * max(dot(n, l), 0.0));

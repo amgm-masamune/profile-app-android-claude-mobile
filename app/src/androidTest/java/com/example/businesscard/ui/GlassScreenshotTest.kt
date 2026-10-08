@@ -3,11 +3,18 @@ package com.example.businesscard.ui
 import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.ComposeTimeoutException
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.businesscard.ui.component.SoftGlassCatalog
@@ -104,22 +111,95 @@ class GlassScreenshotTest {
         )
     }
 
-    private fun capture(name: String, content: @Composable () -> Unit) {
-        composeRule.setContent { BusinessCardTheme(content) }
+    /** 主ボタンを押し込んだまま撮る(沈み込み・影の縮み・指の所の光の確認用) */
+    @Test
+    fun catalogPressed() {
+        composeRule.setContent { BusinessCardTheme { SoftGlassCatalog() } }
+        settle()
+        composeRule.onNode(hasText("Launch") and hasClickAction())
+            .performTouchInput { down(Offset(width * 0.3f, height * 0.5f)) }
+        composeRule.mainClock.advanceTimeBy(300)
         composeRule.waitForIdle()
-        // 横画面への回転など、窓の大きさが変わり終わるのを待つ
+        save("catalog_pressed", captureRoot())
+    }
+
+    /**
+     * 動きをコマ撮りする(CIがつないで動画にする)。時計を止めて 1コマずつ進めながら撮るので、
+     * エミュレータの描画が遅くても、実際の速さどおりの動きになる。
+     *
+     * 登場 → 主ボタンを押して離す → スイッチ → 横並びトグル → タブ
+     */
+    @Test
+    fun interactions() {
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent { BusinessCardTheme { SoftGlassCatalog() } }
+        val frames = FrameRecorder()
+
+        frames.record(28)
+
+        val launch = composeRule.onNode(hasText("Launch") and hasClickAction())
+        launch.performTouchInput { down(Offset(width * 0.3f, height * 0.5f)) }
+        frames.record(9)
+        launch.performTouchInput { up() }
+        frames.record(20)
+
+        tap(composeRule.onNode(isToggleable()), frames)
+        tap(composeRule.onAllNodes(hasText("Tabs") and isSelectable())[0], frames)
+        tap(composeRule.onNode(hasText("New") and isSelectable()), frames)
+    }
+
+    private fun tap(node: SemanticsNodeInteraction, frames: FrameRecorder) {
+        node.performTouchInput { down(center) }
+        frames.record(4)
+        node.performTouchInput { up() }
+        frames.record(18)
+    }
+
+    /** 時計を1コマずつ進めながら、画面の上の部分(カタログ)を縮小して連番で保存する。 */
+    private inner class FrameRecorder {
+        private val dir = File(screenshotDir(), "frames").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        private var index = 0
+
+        fun record(count: Int) {
+            repeat(count) {
+                composeRule.mainClock.advanceTimeBy(FRAME_MILLIS)
+                val full = captureRoot()
+                val cropped = Bitmap.createBitmap(full, 0, 0, full.width, (full.width * FRAME_ASPECT).toInt().coerceAtMost(full.height))
+                val small = Bitmap.createScaledBitmap(cropped, cropped.width / 2, cropped.height / 2, true)
+                File(dir, "f%03d.png".format(index++)).outputStream().use { out ->
+                    small.compress(Bitmap.CompressFormat.PNG, 100, out)
+                }
+            }
+        }
+    }
+
+    private fun settle() {
+        composeRule.waitForIdle()
         Thread.sleep(1_500)
         composeRule.waitForIdle()
-        // 部品の位置が壁の照明に反映されるまで(数フレーム)待つ
         composeRule.mainClock.advanceTimeBy(500)
         composeRule.waitForIdle()
+    }
 
-        val bitmap = captureRoot()
+    private fun screenshotDir(): File {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val dir = File(context.filesDir, "screenshots").apply { mkdirs() }
-        File(dir, "$name.png").outputStream().use { out ->
+        return File(context.filesDir, "screenshots").apply { mkdirs() }
+    }
+
+    private fun save(name: String, bitmap: Bitmap) {
+        File(screenshotDir(), "$name.png").outputStream().use { out ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
         }
+    }
+
+    private fun capture(name: String, content: @Composable () -> Unit) {
+        composeRule.setContent { BusinessCardTheme(content) }
+        // 横画面への回転・登場の動きが終わり、部品の位置が壁の照明に反映されるまで待つ
+        settle()
+        save(name, captureRoot())
     }
 
     /**
@@ -141,5 +221,11 @@ class GlassScreenshotTest {
 
     private companion object {
         const val CAPTURE_ATTEMPTS = 4
+
+        /** 1コマの長さ(約30コマ/秒) */
+        const val FRAME_MILLIS = 33L
+
+        /** コマ撮りで残す範囲(幅に対する高さ)。カタログの4段が入る */
+        const val FRAME_ASPECT = 1.25f
     }
 }

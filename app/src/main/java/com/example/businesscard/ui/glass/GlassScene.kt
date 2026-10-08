@@ -3,6 +3,7 @@ package com.example.businesscard.ui.glass
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.os.Build
+import android.os.SystemClock
 import android.view.Display
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
@@ -19,7 +20,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.layer.GraphicsLayer
+import com.example.businesscard.ui.theme.SoftGlassMotion
 import java.util.function.Consumer
 
 /** 壁の照明シェーダーが一度に扱える部品の数(シェーダーの配列の大きさと同じ)。 */
@@ -49,8 +52,14 @@ internal data class GlassElement(
 class GlassScene internal constructor() {
     /** 壁の左上の、画面(ルート)座標での位置 */
     internal var origin by mutableStateOf(Offset.Zero)
+    internal var size by mutableStateOf(Size.Zero)
     internal val elements = mutableStateMapOf<Any, GlassElement>()
     internal var backdrop: GraphicsLayer? = null
+    private val createdAt = SystemClock.uptimeMillis()
+
+    /** 画面ができた直後か(このとき現れた部品だけ、浮き上がる登場の動きをする) */
+    internal fun isEntering(): Boolean =
+        SystemClock.uptimeMillis() - createdAt < SoftGlassMotion.ENTRANCE_WINDOW_MILLIS
 }
 
 /** いま描いている壁。ダイアログなど別の窓の中では null(背後の壁を透かせない)。 */

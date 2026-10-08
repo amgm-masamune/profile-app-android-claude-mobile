@@ -40,6 +40,7 @@ import com.example.businesscard.ui.component.GlassIconButton
 import com.example.businesscard.ui.component.GlassTextField
 import com.example.businesscard.ui.component.SoftGlassScaffold
 import com.example.businesscard.ui.component.SoftGlassTopBar
+import com.example.businesscard.ui.glass.rememberGlassFeedback
 import com.example.businesscard.ui.preview.SampleCards
 import com.example.businesscard.ui.theme.BusinessCardTheme
 
@@ -51,9 +52,22 @@ fun EditRoute(
     viewModel: EditViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val feedback = rememberGlassFeedback()
 
-    LaunchedEffect(uiState.isSaved) { if (uiState.isSaved) onSaved() }
-    LaunchedEffect(uiState.isDeleted) { if (uiState.isDeleted) onDeleted() }
+    // 保存・削除できたら「受け付けた」振動、氏名が空なら「受け付けられない」振動
+    LaunchedEffect(uiState.isSaved) {
+        if (uiState.isSaved) {
+            feedback.confirm()
+            onSaved()
+        }
+    }
+    LaunchedEffect(uiState.isDeleted) {
+        if (uiState.isDeleted) {
+            feedback.confirm()
+            onDeleted()
+        }
+    }
+    LaunchedEffect(uiState.nameError) { if (uiState.nameError) feedback.reject() }
 
     EditScreen(
         uiState = uiState,

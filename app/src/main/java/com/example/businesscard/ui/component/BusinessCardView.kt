@@ -1,6 +1,5 @@
 package com.example.businesscard.ui.component
 
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -20,6 +19,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.businesscard.domain.model.BusinessCard
+import com.example.businesscard.ui.glass.rememberGlassFeedback
 import com.example.businesscard.ui.theme.SoftGlassShapes
 import com.example.businesscard.ui.theme.SoftGlassTheme
 import com.example.businesscard.ui.theme.SoftGlassType
@@ -28,7 +28,8 @@ import com.example.businesscard.ui.theme.SoftGlassType
  * 名刺の見た目(レイアウト固定)。一覧と表示画面で共通に使う。
  * 見本のボタンと同じ「すりガラスの板 + 下端の光 + 右下の影」を、名刺の大きさにしたもの。
  *
- * @param onClick 指定すると面全体がボタンになる(押している間は膜が濃くなる)
+ * @param onClick 指定すると面全体がボタンになる。押すと名刺が壁へ沈み(影が縮む)、指の所が光り、
+ *   離すとばねで戻る。押す・離すで短く振動する
  */
 @Composable
 fun BusinessCardView(
@@ -44,6 +45,7 @@ fun BusinessCardView(
     val mutedColor = textColor.copy(alpha = textColor.alpha * 0.8f)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val feedback = rememberGlassFeedback()
 
     Column(
         modifier = modifier
@@ -52,6 +54,7 @@ fun BusinessCardView(
                 shape = shape,
                 fill = backgroundColor ?: if (pressed) c.glassPressed else c.glass,
                 glow = GlassGlow.Strong,
+                interactionSource = if (onClick != null) interaction else null,
             )
             .then(
                 if (onClick != null) {
@@ -59,9 +62,12 @@ fun BusinessCardView(
                         .clip(shape)
                         .clickable(
                             interactionSource = interaction,
-                            indication = LocalIndication.current,
+                            indication = null,
                             role = Role.Button,
-                            onClick = onClick,
+                            onClick = {
+                                feedback.click()
+                                onClick()
+                            },
                         )
                 } else {
                     Modifier

@@ -1,7 +1,6 @@
 package com.example.businesscard.ui.component
 
 import android.view.WindowManager
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -41,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogWindowProvider
 import com.example.businesscard.ui.glass.LocalGlassScene
+import com.example.businesscard.ui.glass.rememberGlassFeedback
+import com.example.businesscard.ui.theme.SoftGlassLight
 import com.example.businesscard.ui.theme.SoftGlassShapes
 import com.example.businesscard.ui.theme.SoftGlassSize
 import com.example.businesscard.ui.theme.SoftGlassTheme
@@ -65,7 +66,10 @@ fun GlassLabel(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** すりガラスのボタン。押している間は膜が濃くなり、光が強くなる。 */
+/**
+ * すりガラスのボタン。押すと壁へ沈み(少し小さくなり、影が縮む)、指の所が光り、光源が強まる。
+ * 離すとばねで戻る。押す・離すで短く振動し、確定するとクリック音(端末の設定に従う)。
+ */
 @Composable
 fun GlassButton(
     text: String,
@@ -77,13 +81,13 @@ fun GlassButton(
     val c = SoftGlassTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val feedback = rememberGlassFeedback()
     val textStyle = if (style == GlassButtonStyle.Secondary) SoftGlassType.button else SoftGlassType.buttonStrong
     val contentColor = if (style == GlassButtonStyle.Danger) c.danger else c.ink
-    val glow = when {
-        pressed -> GlassGlow.Strong
-        style == GlassButtonStyle.Primary -> GlassGlow.Strong
-        style == GlassButtonStyle.Secondary -> GlassGlow.Medium
-        else -> GlassGlow.Soft
+    val glow = when (style) {
+        GlassButtonStyle.Primary -> GlassGlow.Strong
+        GlassButtonStyle.Secondary -> GlassGlow.Medium
+        GlassButtonStyle.Danger -> GlassGlow.Soft
     }
 
     Row(
@@ -93,13 +97,18 @@ fun GlassButton(
                 shape = SoftGlassShapes.control,
                 fill = if (pressed) c.glassPressed else c.glass,
                 glow = glow,
+                interactionSource = interaction,
             )
             .clip(SoftGlassShapes.control)
+            // 押した反応はガラス自身(沈み込み・指の所の光)で返すので、標準の波紋は出さない
             .clickable(
                 interactionSource = interaction,
-                indication = LocalIndication.current,
+                indication = null,
                 role = Role.Button,
-                onClick = onClick,
+                onClick = {
+                    feedback.click()
+                    onClick()
+                },
             )
             .padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
@@ -135,6 +144,7 @@ fun GlassIconButton(
     val c = SoftGlassTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val feedback = rememberGlassFeedback()
     val fill = when {
         style == GlassButtonStyle.Danger -> if (pressed) c.glassPressed else c.glass
         pressed -> c.glassTile.copy(alpha = 0.6f)
@@ -147,14 +157,18 @@ fun GlassIconButton(
             .glassSurface(
                 shape = SoftGlassShapes.control,
                 fill = fill,
-                glow = if (style == GlassButtonStyle.Primary || pressed) GlassGlow.Strong else GlassGlow.Soft,
+                glow = if (style == GlassButtonStyle.Primary) GlassGlow.Strong else GlassGlow.Soft,
+                interactionSource = interaction,
             )
             .clip(SoftGlassShapes.control)
             .clickable(
                 interactionSource = interaction,
-                indication = LocalIndication.current,
+                indication = null,
                 role = Role.Button,
-                onClick = onClick,
+                onClick = {
+                    feedback.click()
+                    onClick()
+                },
             ),
         contentAlignment = Alignment.Center,
     ) {
@@ -165,7 +179,8 @@ fun GlassIconButton(
 /**
  * すりガラスの入力欄(見本の「Icon button + Text field」)。
  * ラベルは部品の上、[leadingIcon] は左端の明るいタイルに入る。
- * フォーカス中は縁が白く濃くなり、下端の光が強くなる。エラー時は縁と注記が危険色。
+ * フォーカス中は縁が白く濃くなり、下端の光が強くなり、少し手前に浮き上がる(影が伸びる)。
+ * 触った所も光る。エラー時は縁と注記が危険色。
  */
 @Composable
 fun GlassTextField(
@@ -216,6 +231,9 @@ fun GlassTextField(
                             glow = if (focused) GlassGlow.Strong else GlassGlow.Medium,
                             border = borderColor,
                             borderWidth = if (isError || focused) 1.5.dp else 1.dp,
+                            elevation = if (focused) SoftGlassLight.elevation + 6.dp else SoftGlassLight.elevation,
+                            interactionSource = interaction,
+                            haptics = false,
                         ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

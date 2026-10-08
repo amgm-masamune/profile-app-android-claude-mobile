@@ -30,3 +30,8 @@ run_tests "$CLASS"
 mkdir -p shots
 adb exec-out run-as "$PKG" tar -cf - -C files screenshots | tar -xf - -C shots
 ls -la shots/screenshots
+
+# コマ撮りをつないで動きの動画にする
+python3 -m venv /tmp/motion-venv
+/tmp/motion-venv/bin/pip install --quiet pillow
+/tmp/motion-venv/bin/python scripts/make-motion.py shots/screenshots/frames shots/screenshots/interactions
