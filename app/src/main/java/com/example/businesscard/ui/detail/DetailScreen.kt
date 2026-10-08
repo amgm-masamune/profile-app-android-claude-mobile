@@ -7,6 +7,7 @@ import android.content.pm.ActivityInfo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,17 +25,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.businesscard.R
-import com.example.businesscard.ui.component.BusinessCardView
-import com.example.businesscard.ui.component.GlassButtonStyle
-import com.example.businesscard.ui.component.GlassIconButton
-import com.example.businesscard.ui.component.SoftGlassBackground
+import com.example.businesscard.domain.model.ThemeStyle
+import com.example.businesscard.ui.designsystem.AppBackground
+import com.example.businesscard.ui.designsystem.AppBusinessCard
+import com.example.businesscard.ui.designsystem.AppButtonStyle
+import com.example.businesscard.ui.designsystem.AppIconButton
+import com.example.businesscard.ui.designsystem.AppTheme
+import com.example.businesscard.ui.designsystem.BusinessCardAppTheme
 import com.example.businesscard.ui.preview.SampleCards
-import com.example.businesscard.ui.theme.BusinessCardTheme
-import com.example.businesscard.ui.theme.SoftGlassSize
 
 @Composable
 fun DetailRoute(
@@ -64,20 +65,21 @@ fun DetailScreen(
     onEdit: () -> Unit,
 ) {
     LockScreenOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
+    val dimens = AppTheme.dimens
 
-    SoftGlassBackground {
+    AppBackground {
         Row(
             modifier = Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .padding(start = 20.dp, top = 20.dp, end = 32.dp, bottom = 32.dp),
-            horizontalArrangement = Arrangement.spacedBy(32.dp),
+                .padding(dimens.detailPadding),
+            horizontalArrangement = Arrangement.spacedBy(dimens.detailSpacing),
         ) {
             Column(
-                modifier = Modifier.fillMaxHeight().width(SoftGlassSize.iconButton),
+                modifier = Modifier.fillMaxHeight().width(IntrinsicSize.Max),
                 verticalArrangement = Arrangement.Top,
             ) {
-                GlassIconButton(
+                AppIconButton(
                     onClick = onBack,
                     icon = Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = stringResource(R.string.back),
@@ -87,27 +89,35 @@ fun DetailScreen(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 contentAlignment = Alignment.Center,
             ) {
-                uiState.card?.let { card -> BusinessCardView(card = card) }
+                uiState.card?.let { card -> AppBusinessCard(card = card) }
             }
             Column(
-                modifier = Modifier.fillMaxHeight().width(SoftGlassSize.iconButton),
+                modifier = Modifier.fillMaxHeight().width(IntrinsicSize.Max),
                 verticalArrangement = Arrangement.Bottom,
             ) {
-                GlassIconButton(
+                AppIconButton(
                     onClick = onEdit,
                     icon = Icons.Outlined.Edit,
                     contentDescription = stringResource(R.string.edit),
-                    style = GlassButtonStyle.Primary,
+                    style = AppButtonStyle.Primary,
                 )
             }
         }
     }
 }
 
-@Preview(widthDp = 892, heightDp = 412)
+@Preview(name = "Edgelit", widthDp = 892, heightDp = 412)
 @Composable
-private fun DetailScreenPreview() {
-    BusinessCardTheme {
+private fun DetailScreenEdgelitPreview() {
+    BusinessCardAppTheme(ThemeStyle.EDGELIT) {
+        DetailScreen(uiState = DetailUiState(card = SampleCards.taro, isLoading = false), onBack = {}, onEdit = {})
+    }
+}
+
+@Preview(name = "Porcelain", widthDp = 892, heightDp = 412)
+@Composable
+private fun DetailScreenPorcelainPreview() {
+    BusinessCardAppTheme(ThemeStyle.PORCELAIN) {
         DetailScreen(uiState = DetailUiState(card = SampleCards.taro, isLoading = false), onBack = {}, onEdit = {})
     }
 }

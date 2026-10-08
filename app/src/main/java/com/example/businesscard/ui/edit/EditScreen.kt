@@ -33,16 +33,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.businesscard.R
-import com.example.businesscard.ui.component.GlassButton
-import com.example.businesscard.ui.component.GlassButtonStyle
-import com.example.businesscard.ui.component.GlassConfirmDialog
-import com.example.businesscard.ui.component.GlassIconButton
-import com.example.businesscard.ui.component.GlassTextField
-import com.example.businesscard.ui.component.SoftGlassScaffold
-import com.example.businesscard.ui.component.SoftGlassTopBar
+import com.example.businesscard.domain.model.ThemeStyle
+import com.example.businesscard.ui.designsystem.AppButton
+import com.example.businesscard.ui.designsystem.AppButtonStyle
+import com.example.businesscard.ui.designsystem.AppConfirmDialog
+import com.example.businesscard.ui.designsystem.AppIconButton
+import com.example.businesscard.ui.designsystem.AppScaffold
+import com.example.businesscard.ui.designsystem.AppTextField
+import com.example.businesscard.ui.designsystem.AppTheme
+import com.example.businesscard.ui.designsystem.AppTopBar
+import com.example.businesscard.ui.designsystem.BusinessCardAppTheme
 import com.example.businesscard.ui.glass.rememberGlassFeedback
 import com.example.businesscard.ui.preview.SampleCards
-import com.example.businesscard.ui.theme.BusinessCardTheme
 
 @Composable
 fun EditRoute(
@@ -101,10 +103,11 @@ fun EditScreen(
     onDelete: () -> Unit,
 ) {
     var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
+    val dimens = AppTheme.dimens
 
-    SoftGlassScaffold(
+    AppScaffold(
         topBar = {
-            SoftGlassTopBar(
+            AppTopBar(
                 title = stringResource(
                     if (uiState.isNew) R.string.edit_title_new else R.string.edit_title_edit,
                 ),
@@ -117,19 +120,24 @@ fun EditScreen(
                     .fillMaxWidth()
                     .navigationBarsPadding()
                     .imePadding()
-                    .padding(start = 24.dp, top = 12.dp, end = 24.dp, bottom = 24.dp),
+                    .padding(
+                        start = dimens.screenHorizontal,
+                        top = dimens.actionsTop,
+                        end = dimens.screenHorizontal,
+                        bottom = dimens.actionsBottom,
+                    ),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (!uiState.isNew) {
-                    GlassIconButton(
+                    AppIconButton(
                         onClick = { showDeleteConfirm = true },
                         icon = Icons.Outlined.Delete,
                         contentDescription = stringResource(R.string.delete),
-                        style = GlassButtonStyle.Danger,
+                        style = AppButtonStyle.Danger,
                     )
                 }
-                GlassButton(
+                AppButton(
                     text = stringResource(R.string.save),
                     onClick = onSave,
                     modifier = Modifier.weight(1f),
@@ -142,10 +150,15 @@ fun EditScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 // 下端の光と右下の影が次の欄にかからないよう、欄どうしの間を広めに取る
-                .padding(start = 24.dp, top = 8.dp, end = 24.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+                .padding(
+                    start = dimens.screenHorizontal,
+                    top = dimens.contentTop,
+                    end = dimens.screenHorizontal,
+                    bottom = dimens.contentBottom,
+                ),
+            verticalArrangement = Arrangement.spacedBy(dimens.fieldSpacing),
         ) {
-            GlassTextField(
+            AppTextField(
                 value = uiState.name,
                 onValueChange = onNameChange,
                 label = stringResource(R.string.label_name),
@@ -155,7 +168,7 @@ fun EditScreen(
                 keyboardOptions = NextField,
                 modifier = Modifier.fillMaxWidth(),
             )
-            GlassTextField(
+            AppTextField(
                 value = uiState.company,
                 onValueChange = onCompanyChange,
                 label = stringResource(R.string.label_company),
@@ -163,7 +176,7 @@ fun EditScreen(
                 keyboardOptions = NextField,
                 modifier = Modifier.fillMaxWidth(),
             )
-            GlassTextField(
+            AppTextField(
                 value = uiState.title,
                 onValueChange = onTitleChange,
                 label = stringResource(R.string.label_title),
@@ -171,7 +184,7 @@ fun EditScreen(
                 keyboardOptions = NextField,
                 modifier = Modifier.fillMaxWidth(),
             )
-            GlassTextField(
+            AppTextField(
                 value = uiState.phone,
                 onValueChange = onPhoneChange,
                 label = stringResource(R.string.label_phone),
@@ -179,7 +192,7 @@ fun EditScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth(),
             )
-            GlassTextField(
+            AppTextField(
                 value = uiState.email,
                 onValueChange = onEmailChange,
                 label = stringResource(R.string.label_email),
@@ -191,7 +204,7 @@ fun EditScreen(
     }
 
     if (showDeleteConfirm) {
-        GlassConfirmDialog(
+        AppConfirmDialog(
             title = stringResource(R.string.delete_confirm_title),
             message = stringResource(R.string.delete_confirm_message),
             confirmLabel = stringResource(R.string.delete),
@@ -207,11 +220,18 @@ fun EditScreen(
 
 private val NextField = KeyboardOptions(imeAction = ImeAction.Next)
 
-@Preview(widthDp = 412, heightDp = 892)
+@Preview(name = "Edgelit", widthDp = 412, heightDp = 892)
 @Composable
-private fun EditScreenPreview() {
+private fun EditScreenEdgelitPreview() = EditScreenPreview(ThemeStyle.EDGELIT)
+
+@Preview(name = "Porcelain", widthDp = 412, heightDp = 892)
+@Composable
+private fun EditScreenPorcelainPreview() = EditScreenPreview(ThemeStyle.PORCELAIN)
+
+@Composable
+private fun EditScreenPreview(style: ThemeStyle) {
     val card = SampleCards.taro
-    BusinessCardTheme {
+    BusinessCardAppTheme(style) {
         EditScreen(
             uiState = EditUiState(
                 name = card.name,

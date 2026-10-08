@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # theme/** は見た目の作業ブランチ(別ワークツリー)。main と同じくビルド・撮影する
+    branches: [main, 'theme/**']
   pull_request:
 
 jobs:
@@ -83,31 +84,34 @@ jobs:
           msg=$(sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g' summary.txt | head -c 3500)
           echo "::error title=Device screenshot failure::${msg}"
 
-      # 画像を screenshots ブランチに置く(毎回作り直す。スマホのGitHubからも見られる)
+      # 画像を screenshots ブランチに置く(毎回作り直す。スマホのGitHubからも見られる)。
+      # main 以外のブランチは screenshots-<ブランチ名> に置き、main の画像を上書きしない
       - name: Publish screenshots
         if: success() && github.event_name == 'push'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          target=screenshots
+          if [ "$GITHUB_REF_NAME" != main ]; then target="screenshots-${GITHUB_REF_NAME//\//-}"; fi
           src="$PWD/shots/screenshots"
           tmp=$(mktemp -d)
           cp "$src"/*.png "$tmp"/
           cp "$src"/interactions.webp "$src"/interactions.gif "$tmp"/ 2>/dev/null || true
           cd "$tmp"
           {
-            printf '# Screenshots\n\n%s のスクリーンショット(Androidエミュレータ API 34 / Pixel 6 で GlassScreenshotTest が撮影)\n\n' "${GITHUB_SHA::7}"
+            printf '# Screenshots\n\n%s(%s)のスクリーンショット(Androidエミュレータ API 34 / Pixel 6 で *ScreenshotTest が撮影)\n\n' "${GITHUB_SHA::7}" "$GITHUB_REF_NAME"
             if [ -f interactions.webp ]; then
               printf '## 動き(登場 → ボタンを押して離す → スイッチ → トグル → タブ)\n\n![interactions](interactions.webp)\n\n'
               printf '動かない場合は [GIF版](interactions.gif)\n\n'
             fi
             for f in *.png; do printf '## %s\n\n![%s](%s)\n\n' "${f%.png}" "$f" "$f"; done
           } > README.md
-          git init -q -b screenshots
+          git init -q -b "$target"
           git add .
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit -qm "Screenshots for ${GITHUB_SHA::7}"
-          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" screenshots
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$target"
 
       - uses: actions/upload-artifact@v4
         if: always()

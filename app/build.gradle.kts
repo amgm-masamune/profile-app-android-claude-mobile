@@ -71,6 +71,9 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // 利用者の設定(見た目の切り替え)の保存
+    implementation(libs.androidx.datastore.preferences)
+
     testImplementation(libs.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     testImplementation(libs.robolectric)

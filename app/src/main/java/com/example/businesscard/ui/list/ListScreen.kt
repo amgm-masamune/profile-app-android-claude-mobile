@@ -11,30 +11,32 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.businesscard.R
-import com.example.businesscard.ui.component.BusinessCardView
-import com.example.businesscard.ui.component.GlassButton
-import com.example.businesscard.ui.component.SoftGlassScaffold
-import com.example.businesscard.ui.component.SoftGlassTopBar
-import com.example.businesscard.ui.component.glassSurface
+import com.example.businesscard.domain.model.ThemeStyle
+import com.example.businesscard.ui.designsystem.AppBusinessCard
+import com.example.businesscard.ui.designsystem.AppButton
+import com.example.businesscard.ui.designsystem.AppIconButton
+import com.example.businesscard.ui.designsystem.AppIcons
+import com.example.businesscard.ui.designsystem.AppMessage
+import com.example.businesscard.ui.designsystem.AppScaffold
+import com.example.businesscard.ui.designsystem.AppTheme
+import com.example.businesscard.ui.designsystem.AppTopBar
+import com.example.businesscard.ui.designsystem.BusinessCardAppTheme
 import com.example.businesscard.ui.preview.SampleCards
-import com.example.businesscard.ui.theme.BusinessCardTheme
-import com.example.businesscard.ui.theme.SoftGlassShapes
-import com.example.businesscard.ui.theme.SoftGlassTheme
-import com.example.businesscard.ui.theme.SoftGlassType
+import com.example.businesscard.ui.settings.ThemeSettingsRoute
 
-/** ViewModelと接続するStatefulなエントリ。 */
+/** ViewModelと接続するStatefulなエントリ。見た目の切り替えダイアログもここで開く。 */
 @Composable
 fun ListRoute(
     onAddClick: () -> Unit,
@@ -42,29 +44,57 @@ fun ListRoute(
     viewModel: BusinessCardListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    ListScreen(uiState = uiState, onAddClick = onAddClick, onCardClick = onCardClick)
+    var showThemeSettings by rememberSaveable { mutableStateOf(false) }
+    ListScreen(
+        uiState = uiState,
+        onAddClick = onAddClick,
+        onCardClick = onCardClick,
+        onThemeClick = { showThemeSettings = true },
+    )
+    if (showThemeSettings) {
+        ThemeSettingsRoute(onDismiss = { showThemeSettings = false })
+    }
 }
 
 /**
  * 一覧画面。追加ボタンは画面下に横いっぱいに置く(親指が届き、左右どちらの手でも押せる)。
- * すりガラスどうしが重なると濁って見えるので、ボタンは名刺の上に浮かせず、リストの下に並べる。
+ * ボタンは名刺の上に浮かせず、リストの下に並べる(すりガラスどうしが重なると濁るため。どの見た目でも同じ配置)。
+ * 見た目の切り替えは、右上の丸いボタンから。
  */
 @Composable
 fun ListScreen(
     uiState: ListUiState,
     onAddClick: () -> Unit,
     onCardClick: (Long) -> Unit,
+    onThemeClick: () -> Unit = {},
 ) {
-    SoftGlassScaffold(
-        topBar = { SoftGlassTopBar(title = stringResource(R.string.list_title)) },
+    val dimens = AppTheme.dimens
+    AppScaffold(
+        topBar = {
+            AppTopBar(
+                title = stringResource(R.string.list_title),
+                actions = {
+                    AppIconButton(
+                        onClick = onThemeClick,
+                        icon = AppIcons.Theme,
+                        contentDescription = stringResource(R.string.theme_settings),
+                    )
+                },
+            )
+        },
         bottomBar = {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(start = 24.dp, top = 8.dp, end = 24.dp, bottom = 24.dp),
+                    .padding(
+                        start = dimens.screenHorizontal,
+                        top = dimens.actionsTop,
+                        end = dimens.screenHorizontal,
+                        bottom = dimens.actionsBottom,
+                    ),
             ) {
-                GlassButton(
+                AppButton(
                     text = stringResource(R.string.add_card),
                     onClick = onAddClick,
                     icon = Icons.Outlined.Add,
@@ -76,29 +106,26 @@ fun ListScreen(
         when {
             uiState.isLoading -> Box(Modifier.fillMaxSize())
             uiState.cards.isEmpty() -> Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding).padding(24.dp),
+                modifier = Modifier.fillMaxSize().padding(innerPadding).padding(dimens.screenHorizontal),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = stringResource(R.string.list_empty),
-                    style = SoftGlassType.body,
-                    color = SoftGlassTheme.colors.ink,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .glassSurface(SoftGlassShapes.card)
-                        .padding(horizontal = 24.dp, vertical = 20.dp),
-                )
+                AppMessage(text = stringResource(R.string.list_empty))
             }
             else -> LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                // 右下に落ちる影と下端の光が切れないよう、下と右は多めに空ける
-                contentPadding = PaddingValues(start = 24.dp, top = 8.dp, end = 24.dp, bottom = 40.dp),
-                verticalArrangement = Arrangement.spacedBy(36.dp),
+                // 右下に落ちる影と下端の光が切れないよう、下は多めに空ける
+                contentPadding = PaddingValues(
+                    start = dimens.screenHorizontal,
+                    top = dimens.contentTop,
+                    end = dimens.screenHorizontal,
+                    bottom = dimens.contentBottom,
+                ),
+                verticalArrangement = Arrangement.spacedBy(dimens.listSpacing),
             ) {
                 items(items = uiState.cards, key = { it.id }) { card ->
-                    BusinessCardView(
+                    AppBusinessCard(
                         card = card,
                         onClick = { onCardClick(card.id) },
                     )
@@ -108,10 +135,18 @@ fun ListScreen(
     }
 }
 
-@Preview(widthDp = 412, heightDp = 892)
+@Preview(name = "Edgelit", widthDp = 412, heightDp = 892)
 @Composable
-private fun ListScreenPreview() {
-    BusinessCardTheme {
+private fun ListScreenEdgelitPreview() {
+    BusinessCardAppTheme(ThemeStyle.EDGELIT) {
+        ListScreen(uiState = ListUiState(cards = SampleCards.all, isLoading = false), onAddClick = {}, onCardClick = {})
+    }
+}
+
+@Preview(name = "Porcelain", widthDp = 412, heightDp = 892)
+@Composable
+private fun ListScreenPorcelainPreview() {
+    BusinessCardAppTheme(ThemeStyle.PORCELAIN) {
         ListScreen(uiState = ListUiState(cards = SampleCards.all, isLoading = false), onAddClick = {}, onCardClick = {})
     }
 }
