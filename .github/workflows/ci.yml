@@ -19,7 +19,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Unit tests and debug build
-        run: ./gradlew testDebugUnitTest assembleDebug --stacktrace
+        run: ./gradlew testDebugUnitTest assembleDebug --stacktrace 2>&1 | tee build.log
+
+      # 失敗時にエラー要約をannotationとして残す(ログ全文を開かなくても原因が分かる)
+      - name: Summarize failure
+        if: failure()
+        run: |
+          grep -E '^e: |error:|FAILED|What went wrong|Caused by|\[Hilt\]|\[Dagger|Execution failed' -A4 build.log | head -80 > summary.txt || true
+          msg=$(sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g' summary.txt | head -c 3500)
+          echo "::error title=Gradle failure::${msg}"
 
       - uses: actions/upload-artifact@v4
         if: always()
