@@ -341,7 +341,7 @@ half4 main(float2 p) {
 
     // 指で押した所: すりガラスの中で光がふわっと広がり、縁まで届いた光が少しにじむ
     float td = length(p - touch) / max(touchRadius, 1.0);
-    float touchLight = touchAmount * (0.32 * exp(-td * td * 1.6) * inside + 0.05 / (1.0 + td * td * 3.0));
+    float touchLight = touchAmount * (0.16 * exp(-td * td * 1.6) * inside + 0.03 / (1.0 + td * td * 3.0));
     light += touchLight;
     float3 col = toLin(lightColor) * light;
     float a = clamp(max(col.r, max(col.g, col.b)), 0.0, 1.0);

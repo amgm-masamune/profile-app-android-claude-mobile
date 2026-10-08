@@ -22,7 +22,7 @@ object SoftGlassMotion {
     const val MIN_PRESS_SCALE = 0.93f
 
     /** 押し込んだとき、光源がこの強さまで明るくなる(主ボタンの 1.0 を少し超える) */
-    const val PRESSED_GLOW = 1.2f
+    const val PRESSED_GLOW = 1.1f
 
     const val PRESS_IN_MILLIS = 90
     const val TOUCH_IN_MILLIS = 140

@@ -200,7 +200,11 @@ internal fun Modifier.floatingGlass(
     val powered = ((liftNow - 0.55f) / 0.45f).coerceIn(0f, 1.2f)
     val emitNow = (emit + (SoftGlassMotion.PRESSED_GLOW - emit) * depth.coerceIn(0f, 1f)) * powered
     val elevationNow = elevation.value * (1f - SoftGlassMotion.PRESS_SINK * depth) * liftNow
-    val currentEmit by rememberUpdatedState(emitNow)
+    // 光源が壁に近づくと、照らされる所は距離の2乗で明るくなる。そのままだと白く飛ぶので、
+    // 近づいたぶんを一部だけ打ち消す(光の輪は小さく・少し明るくなる)
+    val nearness = (elevationNow / elevation.value.coerceAtLeast(1f)).coerceIn(0.05f, 1.5f)
+    val emitOnWall = emitNow * nearness * kotlin.math.sqrt(nearness)
+    val currentEmit by rememberUpdatedState(emitOnWall)
     val currentElevation by rememberUpdatedState(elevationNow)
     val currentEmitTop by rememberUpdatedState(emitTop)
 
@@ -211,9 +215,9 @@ internal fun Modifier.floatingGlass(
     SideEffect {
         val current = scene.elements[key]
         if (current != null &&
-            (current.emit != emitNow || current.emitTop != emitTop || current.elevationDp != elevationNow)
+            (current.emit != emitOnWall || current.emitTop != emitTop || current.elevationDp != elevationNow)
         ) {
-            scene.elements[key] = current.copy(emit = emitNow, emitTop = emitTop, elevationDp = elevationNow)
+            scene.elements[key] = current.copy(emit = emitOnWall, emitTop = emitTop, elevationDp = elevationNow)
         }
     }
 
@@ -378,7 +382,7 @@ private fun DrawScope.drawEmission(
     shader.setFloatUniform("touch", point.x, point.y)
     shader.setFloatUniform("touchAmount", touchAmount)
     // 押している間に光が広がっていく
-    shader.setFloatUniform("touchRadius", (14 + 22 * touchAmount).dp.toPx())
+    shader.setFloatUniform("touchRadius", (10 + 16 * touchAmount).dp.toPx())
     drawRect(
         brush = ShaderBrush(shader),
         topLeft = Offset(-g, -g),
