@@ -23,6 +23,10 @@ UI層   (Composable) ──events──▶ ViewModel (StateFlowでUiStateを公�
 - DIは `BusinessCardApplication` の `AppContainer` による手動DI(Hiltなし)
 - ViewModelの生成は `AppViewModelProvider` に集約
 
+## デザイン
+
+デザインシステム「Soft Glass」(ライトグレー基調のガラス面 + 柔らかい影 + 発光アクセント)。トークンは `ui/theme/`、共通部品は `ui/component/`。詳細とボタン配置のルールは [DESIGN.md](DESIGN.md)。
+
 ## ビルドとテスト
 
 ```

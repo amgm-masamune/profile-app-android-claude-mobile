@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">名刺</string>
     <string name="list_title">名刺一覧</string>
-    <string name="list_empty">名刺がありません。右下の＋から追加してください。</string>
+    <string name="list_empty">名刺がありません。\n下の「名刺を追加」から作成できます。</string>
     <string name="add_card">名刺を追加</string>
     <string name="edit_title_new">名刺を追加</string>
     <string name="edit_title_edit">名刺を編集</string>
@@ -10,6 +10,9 @@
     <string name="edit">編集</string>
     <string name="delete">削除</string>
     <string name="save">保存</string>
+    <string name="cancel">キャンセル</string>
+    <string name="delete_confirm_title">この名刺を削除しますか？</string>
+    <string name="delete_confirm_message">削除すると元に戻せません。</string>
     <string name="label_name">氏名</string>
     <string name="label_company">会社名</string>
     <string name="label_title">肩書</string>

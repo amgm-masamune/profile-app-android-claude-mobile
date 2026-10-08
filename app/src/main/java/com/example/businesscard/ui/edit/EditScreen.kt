@@ -1,25 +1,23 @@
 package com.example.businesscard.ui.edit
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -27,6 +25,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.businesscard.R
 import com.example.businesscard.ui.AppViewModelProvider
+import com.example.businesscard.ui.component.GlassButton
+import com.example.businesscard.ui.component.GlassConfirmDialog
+import com.example.businesscard.ui.component.GlassIconButton
+import com.example.businesscard.ui.component.GlassTextField
+import com.example.businesscard.ui.component.SoftGlassScaffold
+import com.example.businesscard.ui.component.SoftGlassTopBar
+import com.example.businesscard.ui.theme.SoftGlassTheme
 
 @Composable
 fun EditRoute(
@@ -53,7 +58,12 @@ fun EditRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * 編集画面。操作は画面下にまとめる(キーボードの真上に追従する)。
+ *  - 左: 削除(編集時のみ。危険色の小さな丸ボタン。押すと確認が出る)
+ *  - 右: 保存(主操作。広く光らせる)
+ * 以前は保存・削除が上部に並んでいて、押し間違いと親指の届きにくさが問題だった。
+ */
 @Composable
 fun EditScreen(
     uiState: EditUiState,
@@ -66,78 +76,96 @@ fun EditScreen(
     onSave: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Scaffold(
+    var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
+
+    SoftGlassScaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(
-                            if (uiState.isNew) R.string.edit_title_new else R.string.edit_title_edit,
-                        ),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-                actions = {
-                    if (!uiState.isNew) {
-                        IconButton(onClick = onDelete) {
-                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete))
-                        }
-                    }
-                    TextButton(onClick = onSave) { Text(stringResource(R.string.save)) }
-                },
+            SoftGlassTopBar(
+                title = stringResource(
+                    if (uiState.isNew) R.string.edit_title_new else R.string.edit_title_edit,
+                ),
+                onBack = onBack,
             )
+        },
+        bottomBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (!uiState.isNew) {
+                    GlassIconButton(
+                        onClick = { showDeleteConfirm = true },
+                        icon = Icons.Default.Delete,
+                        contentDescription = stringResource(R.string.delete),
+                        tint = SoftGlassTheme.colors.danger,
+                    )
+                }
+                GlassButton(
+                    text = stringResource(R.string.save),
+                    onClick = onSave,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         },
     ) { innerPadding ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            OutlinedTextField(
+            GlassTextField(
                 value = uiState.name,
                 onValueChange = onNameChange,
-                label = { Text(stringResource(R.string.label_name)) },
+                label = stringResource(R.string.label_name),
                 isError = uiState.nameError,
-                supportingText = {
-                    if (uiState.nameError) Text(stringResource(R.string.error_name_required))
-                },
-                singleLine = true,
+                errorText = if (uiState.nameError) stringResource(R.string.error_name_required) else null,
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            GlassTextField(
                 value = uiState.company,
                 onValueChange = onCompanyChange,
-                label = { Text(stringResource(R.string.label_company)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                label = stringResource(R.string.label_company),
+                modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            GlassTextField(
                 value = uiState.title,
                 onValueChange = onTitleChange,
-                label = { Text(stringResource(R.string.label_title)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                label = stringResource(R.string.label_title),
+                modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            GlassTextField(
                 value = uiState.phone,
                 onValueChange = onPhoneChange,
-                label = { Text(stringResource(R.string.label_phone)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                label = stringResource(R.string.label_phone),
+                modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            GlassTextField(
                 value = uiState.email,
                 onValueChange = onEmailChange,
-                label = { Text(stringResource(R.string.label_email)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                label = stringResource(R.string.label_email),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
+
+    if (showDeleteConfirm) {
+        GlassConfirmDialog(
+            title = stringResource(R.string.delete_confirm_title),
+            message = stringResource(R.string.delete_confirm_message),
+            confirmLabel = stringResource(R.string.delete),
+            dismissLabel = stringResource(R.string.cancel),
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete()
+            },
+            onDismiss = { showDeleteConfirm = false },
+        )
     }
 }
