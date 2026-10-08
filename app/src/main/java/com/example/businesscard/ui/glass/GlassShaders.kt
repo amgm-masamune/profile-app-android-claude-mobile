@@ -82,6 +82,7 @@ uniform float dp;
 uniform int count;
 uniform float4 rects[16];
 uniform float4 props[16];
+uniform float4 extra[16];
 layout(color) uniform half4 albedoTop;
 layout(color) uniform half4 albedoBottom;
 layout(color) uniform half4 lightColor;
@@ -141,6 +142,8 @@ half4 main(float2 xy) {
         }
         float4 r = rects[i];
         float4 pr = props[i];
+        // 部品の見えている度合い(登場の途中は薄い)。見えていない板は影も落とさない
+        float opacity = extra[i].x;
         float2 halfS = (r.zw - r.xy) * 0.5;
         float2 ctr = (r.xy + r.zw) * 0.5;
         float rad = min(pr.x, min(halfS.x, halfS.y));
@@ -155,12 +158,12 @@ half4 main(float2 xy) {
         // 影: 部品の形を光と逆向きにずらし、壁からの距離に比例してぼかす
         float sdShadow = sdRoundRect(xy - ctr - shadowDir * elev, halfS, rad);
         float penKey = 0.15 * elev + dp;
-        keyVis *= 1.0 - (1.0 - smoothstep(-penKey, penKey, sdShadow)) * (1.0 - GLASS_T);
+        keyVis *= 1.0 - (1.0 - smoothstep(-penKey, penKey, sdShadow)) * (1.0 - GLASS_T) * opacity;
         float penSun = 0.08 * elev + dp;
-        sunVis *= 1.0 - (1.0 - smoothstep(-penSun, penSun, sdShadow)) * (1.0 - GLASS_T);
+        sunVis *= 1.0 - (1.0 - smoothstep(-penSun, penSun, sdShadow)) * (1.0 - GLASS_T) * opacity;
         // 部品のすぐ近くは環境光が届きにくい
         float sd = sdRoundRect(xy - ctr, halfS, rad);
-        ao *= 1.0 - 0.28 * fade * exp(-max(sd, 0.0) / (0.8 * elev + dp));
+        ao *= 1.0 - 0.28 * fade * opacity * exp(-max(sd, 0.0) / (0.8 * elev + dp));
         if (pr.z > 0.0) {
             emitted += fade * pr.z * emittedLight(xy, r, elev, pr.w);
         }

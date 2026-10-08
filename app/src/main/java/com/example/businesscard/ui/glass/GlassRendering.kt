@@ -83,6 +83,7 @@ internal fun GlassSceneHost(
     val shader = remember { RuntimeShader(GlassShaders.WALL) }
     val rects = remember { FloatArray(MAX_ELEMENTS * 4) }
     val props = remember { FloatArray(MAX_ELEMENTS * 4) }
+    val extra = remember { FloatArray(MAX_ELEMENTS * 4) }
 
     CompositionLocalProvider(LocalGlassScene provides scene) {
         Box(
@@ -97,6 +98,7 @@ internal fun GlassSceneHost(
                     val origin = scene.origin
                     rects.fill(0f)
                     props.fill(0f)
+                    extra.fill(0f)
                     var n = 0
                     for (element in scene.elements.values) {
                         if (n == MAX_ELEMENTS) break
@@ -110,6 +112,7 @@ internal fun GlassSceneHost(
                         props[n * 4 + 1] = element.elevationDp
                         props[n * 4 + 2] = element.emit
                         props[n * 4 + 3] = if (element.emitTop) 1f else 0f
+                        extra[n * 4] = element.opacity
                         n++
                     }
                     val light = lightDirection(tilt.value)
@@ -118,6 +121,7 @@ internal fun GlassSceneHost(
                     shader.setIntUniform("count", n)
                     shader.setFloatUniform("rects", rects)
                     shader.setFloatUniform("props", props)
+                    shader.setFloatUniform("extra", extra)
                     shader.setColorUniform("albedoTop", wallTop.toArgb())
                     shader.setColorUniform("albedoBottom", wallBottom.toArgb())
                     shader.setColorUniform("lightColor", lightColor.toArgb())
@@ -204,7 +208,9 @@ internal fun Modifier.floatingGlass(
     // 近づいたぶんを一部だけ打ち消す(光の輪は小さく・少し明るくなる)
     val nearness = (elevationNow / elevation.value.coerceAtLeast(1f)).coerceIn(0.05f, 1.5f)
     val emitOnWall = emitNow * nearness * kotlin.math.sqrt(nearness)
+    val opacity = (liftNow * 2.5f).coerceIn(0f, 1f)
     val currentEmit by rememberUpdatedState(emitOnWall)
+    val currentOpacity by rememberUpdatedState(opacity)
     val currentElevation by rememberUpdatedState(elevationNow)
     val currentEmitTop by rememberUpdatedState(emitTop)
 
@@ -215,16 +221,24 @@ internal fun Modifier.floatingGlass(
     SideEffect {
         val current = scene.elements[key]
         if (current != null &&
-            (current.emit != emitOnWall || current.emitTop != emitTop || current.elevationDp != elevationNow)
+            (
+                current.emit != emitOnWall || current.emitTop != emitTop ||
+                    current.elevationDp != elevationNow || current.opacity != opacity
+                )
         ) {
-            scene.elements[key] = current.copy(emit = emitOnWall, emitTop = emitTop, elevationDp = elevationNow)
+            scene.elements[key] = current.copy(
+                emit = emitOnWall,
+                emitTop = emitTop,
+                elevationDp = elevationNow,
+                opacity = opacity,
+            )
         }
     }
 
     return this
         .graphicsLayer {
             // 壁に貼りついている間は見えず、浮き上がりながら現れる
-            alpha = (liftNow * 2.5f).coerceIn(0f, 1f)
+            alpha = opacity
             val s = 0.96f + 0.04f * liftNow
             scaleX = s
             scaleY = s
@@ -237,6 +251,7 @@ internal fun Modifier.floatingGlass(
                 elevationDp = currentElevation,
                 emit = currentEmit,
                 emitTop = currentEmitTop,
+                opacity = currentOpacity,
             )
             if (scene.elements[key] != element) scene.elements[key] = element
         }

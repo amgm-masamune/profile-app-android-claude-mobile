@@ -40,6 +40,8 @@ internal data class GlassElement(
     val emit: Float,
     /** 光源が上端にあるか(ふつうは下端) */
     val emitTop: Boolean,
+    /** 見えている度合い 0..1(登場の途中は薄い。見えていない板は影を落とさない) */
+    val opacity: Float = 1f,
 )
 
 /**
