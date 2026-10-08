@@ -7,6 +7,9 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+// スクリーンショットテスト(ScreenshotTest)を動かすかどうか。 ./gradlew testDebugUnitTest -PrecordScreenshots=true
+val recordScreenshots = providers.gradleProperty("recordScreenshots").getOrElse("false")
+
 android {
     namespace = "com.example.businesscard"
     compileSdk = 35
@@ -42,6 +45,7 @@ android {
         unitTests {
             // Robolectric(SavedStateHandle.toRouteなどAndroid APIを使うViewModelのテスト)用
             isIncludeAndroidResources = true
+            all { test -> test.systemProperty("screenshots.record", recordScreenshots) }
         }
     }
 }
@@ -70,6 +74,9 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.BusinessCard" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- 壁(グレージュ)に白い文字の配色なので、端末のライト/ダーク設定に関係なく暗い側のテーマを土台にする -->
+    <style name="Theme.BusinessCard" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/wall</item>
+    </style>
 </resources>

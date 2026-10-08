@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 起動直後(Composeが描画される前)の窓の色。SoftGlassColors.wallBottom と同じ -->
+    <color name="wall">#FF968677</color>
+</resources>

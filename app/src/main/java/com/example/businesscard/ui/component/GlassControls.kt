@@ -1,41 +1,65 @@
 package com.example.businesscard.ui.component
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.background
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.businesscard.ui.theme.SoftGlassElevation
+import androidx.compose.ui.window.Dialog
 import com.example.businesscard.ui.theme.SoftGlassShapes
+import com.example.businesscard.ui.theme.SoftGlassSize
 import com.example.businesscard.ui.theme.SoftGlassTheme
+import com.example.businesscard.ui.theme.SoftGlassType
 
-/** ボタンの種類。1画面に Primary は1つまで(いちばん大事な操作だけ光らせる)。 */
+/**
+ * ボタンの種類。見本の「Launch」「Premium plan」が Primary、「Secondary」が Secondary。
+ * Primary は太字で強く光る。1画面に Primary は1つまで。
+ */
 enum class GlassButtonStyle { Primary, Secondary, Danger }
 
-/** pill形のボタン。Primary はオレンジの発光、Secondary/Danger はガラス面。 */
+/** 部品の上に置く小さなラベル(見本の「Launch」「Icon button」などの見出し)。 */
+@Composable
+fun GlassLabel(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = SoftGlassType.label,
+        color = SoftGlassTheme.colors.ink,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
+    )
+}
+
+/** すりガラスのボタン。押している間は膜が濃くなり、光が強くなる。 */
 @Composable
 fun GlassButton(
     text: String,
@@ -45,41 +69,42 @@ fun GlassButton(
     icon: ImageVector? = null,
 ) {
     val c = SoftGlassTheme.colors
-    val shape = SoftGlassShapes.pill
-    val contentColor = when (style) {
-        GlassButtonStyle.Primary -> c.onAccent
-        GlassButtonStyle.Secondary -> c.ink
-        GlassButtonStyle.Danger -> c.danger
-    }
-    val surface = if (style == GlassButtonStyle.Primary) {
-        Modifier
-            .shadow(
-                elevation = SoftGlassElevation.floating,
-                shape = shape,
-                ambientColor = c.accentWarm.copy(alpha = 0.5f),
-                spotColor = c.accentWarm.copy(alpha = 0.9f),
-            )
-            .background(Brush.verticalGradient(listOf(c.accentWarmSoft, c.accentWarm)), shape)
-    } else {
-        Modifier.glassSurface(shape)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val textStyle = if (style == GlassButtonStyle.Secondary) SoftGlassType.button else SoftGlassType.buttonStrong
+    val contentColor = if (style == GlassButtonStyle.Danger) c.danger else c.ink
+    val glow = when {
+        pressed -> GlassGlow.Strong
+        style == GlassButtonStyle.Primary -> GlassGlow.Strong
+        style == GlassButtonStyle.Secondary -> GlassGlow.Medium
+        else -> GlassGlow.Soft
     }
 
     Row(
         modifier = modifier
-            .heightIn(min = 56.dp)
-            .then(surface)
-            .clip(shape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 28.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            .heightIn(min = SoftGlassSize.control)
+            .glassSurface(
+                shape = SoftGlassShapes.control,
+                fill = if (pressed) c.glassPressed else c.glass,
+                glow = glow,
+            )
+            .clip(SoftGlassShapes.control)
+            .clickable(
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+                role = Role.Button,
+                onClick = onClick,
+            )
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            Icon(imageVector = icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(20.dp))
+            Icon(imageVector = icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(22.dp))
         }
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge,
+            style = textStyle,
             color = contentColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -87,7 +112,10 @@ fun GlassButton(
     }
 }
 
-/** 丸いアイコンボタン(48dp)。`primary = true` のときだけオレンジに発光する。 */
+/**
+ * 四角いアイコンボタン(見本の「Icon button」の明るいタイル)。
+ * `primary = true` のときは主ボタンと同じだけ強く光る。
+ */
 @Composable
 fun GlassIconButton(
     onClick: () -> Unit,
@@ -98,78 +126,126 @@ fun GlassIconButton(
     tint: Color = SoftGlassTheme.colors.ink,
 ) {
     val c = SoftGlassTheme.colors
-    val surface = if (primary) {
-        Modifier
-            .shadow(
-                elevation = SoftGlassElevation.floating,
-                shape = CircleShape,
-                ambientColor = c.accentWarm.copy(alpha = 0.5f),
-                spotColor = c.accentWarm.copy(alpha = 0.9f),
-            )
-            .background(Brush.verticalGradient(listOf(c.accentWarmSoft, c.accentWarm)), CircleShape)
-    } else {
-        Modifier.glassSurface(CircleShape)
-    }
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
     Box(
         modifier = modifier
-            .size(48.dp)
-            .then(surface)
-            .clip(CircleShape)
-            .clickable(role = Role.Button, onClick = onClick),
+            .size(SoftGlassSize.iconButton)
+            .glassSurface(
+                shape = SoftGlassShapes.control,
+                fill = if (pressed) c.glassTile.copy(alpha = 0.6f) else c.glassTile,
+                glow = if (primary || pressed) GlassGlow.Strong else GlassGlow.Soft,
+            )
+            .clip(SoftGlassShapes.control)
+            .clickable(
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+                role = Role.Button,
+                onClick = onClick,
+            ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (primary) c.onAccent else tint,
-        )
+        Icon(imageVector = icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(24.dp))
     }
 }
 
-/** ガラス面の入力欄。フォーカス中は縁がオレンジになり、面が少し濃くなる。 */
+/**
+ * すりガラスの入力欄(見本の「Icon button + Text field」)。
+ * ラベルは部品の上、[leadingIcon] は左端の明るいタイルに入る。
+ * フォーカス中は縁が白く濃くなり、下端の光が強くなる。エラー時は縁と注記が危険色。
+ */
 @Composable
 fun GlassTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
     modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    leadingIcon: ImageVector? = null,
     isError: Boolean = false,
     errorText: String? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
 ) {
     val c = SoftGlassTheme.colors
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        isError = isError,
-        supportingText = if (errorText != null) {
-            { Text(errorText) }
-        } else {
-            null
-        },
-        singleLine = true,
-        shape = SoftGlassShapes.field,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = c.ink,
-            unfocusedTextColor = c.ink,
-            errorTextColor = c.ink,
-            focusedContainerColor = c.glassStrong,
-            unfocusedContainerColor = c.glass,
-            errorContainerColor = c.glassStrong,
-            cursorColor = c.focusRing,
-            focusedBorderColor = c.focusRing,
-            unfocusedBorderColor = c.glassBorder,
-            errorBorderColor = c.danger,
-            focusedLabelColor = c.ink,
-            unfocusedLabelColor = c.inkMuted,
-            errorLabelColor = c.danger,
-            errorSupportingTextColor = c.danger,
-        ),
-        modifier = modifier,
-    )
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val borderColor = when {
+        isError -> c.danger
+        focused -> c.focusBorder
+        else -> c.glassBorder
+    }
+
+    Column(modifier = modifier) {
+        GlassLabel(text = label)
+        Spacer(Modifier.height(8.dp))
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = label
+                    if (isError && errorText != null) error(errorText)
+                },
+            singleLine = true,
+            textStyle = SoftGlassType.field.copy(color = c.ink),
+            cursorBrush = SolidColor(c.ink),
+            keyboardOptions = keyboardOptions,
+            interactionSource = interaction,
+            decorationBox = { innerTextField ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(SoftGlassSize.control)
+                        .glassSurface(
+                            shape = SoftGlassShapes.control,
+                            fill = if (focused) c.glassPressed else c.glass,
+                            glow = if (focused) GlassGlow.Strong else GlassGlow.Medium,
+                            border = borderColor,
+                            borderWidth = if (isError || focused) 1.5.dp else 1.dp,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (leadingIcon != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(SoftGlassSize.control)
+                                .glassSurface(
+                                    shape = SoftGlassShapes.control,
+                                    fill = c.glassTile,
+                                    glow = GlassGlow.Soft,
+                                    castShadow = false,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(imageVector = leadingIcon, contentDescription = null, tint = c.ink, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        if (value.isEmpty() && placeholder != null) {
+                            Text(text = placeholder, style = SoftGlassType.field, color = c.inkFaint, maxLines = 1)
+                        }
+                        innerTextField()
+                    }
+                }
+            },
+        )
+        if (isError && errorText != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(text = errorText, style = SoftGlassType.caption, color = c.danger)
+        }
+    }
 }
 
-/** 取り消せない操作の確認ダイアログ。確定側は危険色、キャンセル側は通常色。 */
+/**
+ * 取り消せない操作の確認ダイアログ。不透明なすりガラスの板に、
+ * [キャンセル(副)] [確定(危険色)] の2つのボタンを並べる。
+ */
 @Composable
 fun GlassConfirmDialog(
     title: String,
@@ -180,23 +256,35 @@ fun GlassConfirmDialog(
     onDismiss: () -> Unit,
 ) {
     val c = SoftGlassTheme.colors
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = SoftGlassShapes.card,
-        containerColor = c.dialog,
-        titleContentColor = c.ink,
-        textContentColor = c.inkMuted,
-        title = { Text(title) },
-        text = { Text(message) },
-        confirmButton = {
-            TextButton(onClick = onConfirm, colors = ButtonDefaults.textButtonColors(contentColor = c.danger)) {
-                Text(confirmLabel)
+    Dialog(onDismissRequest = onDismiss) {
+        // 影と光がダイアログの窓の外で切れないよう、周りに余白を取る
+        Box(modifier = Modifier.padding(start = 8.dp, top = 8.dp, end = 24.dp, bottom = 28.dp)) {
+            Column(
+                modifier = Modifier
+                    .glassSurface(shape = SoftGlassShapes.dialog, fill = c.dialog, glow = GlassGlow.Soft)
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(text = title, style = SoftGlassType.cardCompany, color = c.ink)
+                Text(text = message, style = SoftGlassType.body, color = c.inkMuted)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    GlassButton(
+                        text = dismissLabel,
+                        onClick = onDismiss,
+                        style = GlassButtonStyle.Secondary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    GlassButton(
+                        text = confirmLabel,
+                        onClick = onConfirm,
+                        style = GlassButtonStyle.Danger,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, colors = ButtonDefaults.textButtonColors(contentColor = c.ink)) {
-                Text(dismissLabel)
-            }
-        },
-    )
+        }
+    }
 }

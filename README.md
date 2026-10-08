@@ -46,16 +46,19 @@ com.example.businesscard
 
 ## デザイン
 
-デザインシステム「Soft Glass」(ライトグレー基調のガラス面 + 柔らかい影 + 発光アクセント)。トークンは `ui/theme/`、共通部品は `ui/component/`。詳細とボタン配置のルールは [DESIGN.md](DESIGN.md)。
+デザインシステム「Soft Glass」(グレージュ版)。グレージュの壁に、下端が光るすりガラスの部品が浮き、右下に影を落とす。共有されたUIキットの画像を忠実に再現したもの。トークンは `ui/theme/`、共通部品は `ui/component/`。詳細とボタン配置のルールは [DESIGN.md](DESIGN.md)。
+
+最新の見た目は [`screenshots` ブランチ](../../tree/screenshots) で確認できる(pushごとにCIが自動生成)。
 
 ## ビルドとテスト
 
 ```
 ./gradlew testDebugUnitTest   # ユニットテスト
 ./gradlew assembleDebug       # APK作成
+./gradlew testDebugUnitTest --tests '*ScreenshotTest' -PrecordScreenshots=true   # 画面のPNGを書き出す
 ```
 
-push時に GitHub Actions(`.github/workflows/ci.yml`)でも同じものを実行する。
+push時に GitHub Actions(`.github/workflows/ci.yml`)でも同じものを実行し、画面のPNGを `screenshots` ブランチに置く。
 
 ## 今後
 

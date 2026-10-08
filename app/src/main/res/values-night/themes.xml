@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- 起動直後(Composeが描画される前)の白フラッシュを防ぐため、ダーク時は暗いテーマにする -->
-    <style name="Theme.BusinessCard" parent="android:Theme.Material.NoActionBar" />
-</resources>

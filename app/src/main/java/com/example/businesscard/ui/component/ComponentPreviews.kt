@@ -1,78 +1,142 @@
 package com.example.businesscard.ui.component
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.businesscard.domain.model.BusinessCard
 import com.example.businesscard.ui.theme.BusinessCardTheme
-import com.example.businesscard.ui.theme.SoftGlassTheme
 
-/** デザインシステムのカタログ。Android Studio のプレビューで全部品を一覧できる。 */
+/**
+ * デザインシステムのカタログ。見本の画像と同じ並び(2列 x 4段)で全部品を置く。
+ * Android Studio のプレビューと、スクリーンショットテストの両方で使う。
+ */
 @Composable
-private fun SoftGlassCatalog(darkTheme: Boolean) {
-    BusinessCardTheme(darkTheme = darkTheme) {
-        SoftGlassBackground {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                BusinessCardView(
-                    card = BusinessCard(
-                        id = 1,
-                        name = "山田 太郎",
-                        company = "株式会社サンプル",
-                        title = "エンジニア",
-                        phone = "090-1234-5678",
-                        email = "taro@example.com",
-                    ),
-                )
-                GlassTextField(
-                    value = "山田 太郎",
-                    onValueChange = {},
-                    label = "氏名",
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                GlassTextField(
-                    value = "",
-                    onValueChange = {},
-                    label = "会社名",
-                    isError = true,
-                    errorText = "会社名を入力してください",
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    GlassButton(text = "名刺を追加", onClick = {}, icon = Icons.Default.Add)
-                    GlassButton(text = "キャンセル", onClick = {}, style = GlassButtonStyle.Secondary)
-                    GlassButton(text = "削除", onClick = {}, style = GlassButtonStyle.Danger)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    GlassIconButton(onClick = {}, icon = Icons.Default.Edit, contentDescription = "編集", primary = true)
-                    GlassIconButton(
-                        onClick = {},
-                        icon = Icons.Default.Delete,
-                        contentDescription = "削除",
-                        tint = SoftGlassTheme.colors.danger,
+internal fun SoftGlassCatalog(modifier: Modifier = Modifier) {
+    var text by remember { mutableStateOf("") }
+    val dropdownOptions = listOf("Dropdown", "Option A", "Option B")
+    var dropdownIndex by remember { mutableIntStateOf(0) }
+    var segment by remember { mutableIntStateOf(0) }
+    var switchOn by remember { mutableStateOf(false) }
+    var tab by remember { mutableIntStateOf(1) }
+
+    SoftGlassBackground(modifier) {
+        Column(
+            modifier = Modifier.padding(start = 20.dp, top = 48.dp, end = 20.dp, bottom = 48.dp),
+            verticalArrangement = Arrangement.spacedBy(40.dp),
+        ) {
+            CatalogRow(
+                left = {
+                    CatalogItem("Launch") {
+                        GlassButton(text = "Launch", onClick = {}, modifier = Modifier.fillMaxWidth())
+                    }
+                },
+                right = {
+                    CatalogItem("Secondary") {
+                        GlassButton(
+                            text = "Secondary",
+                            onClick = {},
+                            style = GlassButtonStyle.Secondary,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                },
+            )
+            CatalogRow(
+                left = {
+                    GlassTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        label = "Icon button",
+                        placeholder = "Text field",
+                        leadingIcon = GlassIcons.ForwardArrow,
                     )
-                }
-            }
+                },
+                right = {
+                    CatalogItem("Dropdown") {
+                        GlassDropdown(
+                            selected = dropdownOptions[dropdownIndex],
+                            options = dropdownOptions,
+                            onSelect = { dropdownIndex = it },
+                        )
+                    }
+                },
+            )
+            CatalogRow(
+                left = {
+                    CatalogItem("Toggle") {
+                        GlassSegmentedControl(
+                            options = listOf("List", "Grid", "Tabs"),
+                            selectedIndex = segment,
+                            onSelect = { segment = it },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                },
+                right = {
+                    CatalogItem("Toggle") {
+                        GlassSwitch(checked = switchOn, onCheckedChange = { switchOn = it })
+                    }
+                },
+            )
+            CatalogRow(
+                left = {
+                    CatalogItem("Tabs") {
+                        GlassTabs(
+                            tabs = listOf("All", "Tabs", "New"),
+                            selectedIndex = tab,
+                            onSelect = { tab = it },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                },
+                right = {
+                    CatalogItem("Alert plan") {
+                        GlassButton(text = "Premium plan", onClick = {}, modifier = Modifier.fillMaxWidth())
+                    }
+                },
+            )
         }
     }
 }
 
-@Preview(name = "Soft Glass / Light", showBackground = true, heightDp = 760)
 @Composable
-private fun SoftGlassCatalogLightPreview() = SoftGlassCatalog(darkTheme = false)
+private fun CatalogRow(
+    left: @Composable () -> Unit,
+    right: @Composable () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(28.dp),
+    ) {
+        Box(Modifier.weight(1f)) { left() }
+        Box(Modifier.weight(1f)) { right() }
+    }
+}
 
-@Preview(name = "Soft Glass / Dark", showBackground = true, heightDp = 760)
 @Composable
-private fun SoftGlassCatalogDarkPreview() = SoftGlassCatalog(darkTheme = true)
+private fun CatalogItem(label: String, content: @Composable () -> Unit) {
+    Column {
+        GlassLabel(text = label)
+        Spacer(Modifier.height(8.dp))
+        content()
+    }
+}
+
+@Preview(name = "Soft Glass catalog", widthDp = 412, heightDp = 640)
+@Composable
+private fun SoftGlassCatalogPreview() {
+    BusinessCardTheme { SoftGlassCatalog() }
+}

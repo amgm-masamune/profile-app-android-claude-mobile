@@ -1,85 +1,81 @@
 package com.example.businesscard.ui.component
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.businesscard.domain.model.BusinessCard
 import com.example.businesscard.ui.theme.SoftGlassShapes
 import com.example.businesscard.ui.theme.SoftGlassTheme
+import com.example.businesscard.ui.theme.SoftGlassType
 
 /**
  * 名刺の見た目(レイアウト固定)。一覧と表示画面で共通に使う。
- * ガラス面の中に、暖色・寒色の淡い発光が角から滲む。
+ * 見本のボタンと同じ「すりガラスの板 + 下端の光 + 右下の影」を、名刺の大きさにしたもの。
  *
- * @param onClick 指定すると面全体がボタンになる(波紋は角丸の内側に収まる)
+ * @param onClick 指定すると面全体がボタンになる(押している間は膜が濃くなる)
  */
 @Composable
 fun BusinessCardView(
     card: BusinessCard,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
-    // 将来、名刺ごとの背景色・文字色に差し替えるための引数(null = ガラス面)
+    // 将来、名刺ごとの背景色・文字色に差し替えるための引数(null = すりガラス)
     backgroundColor: Color? = null,
     textColor: Color = SoftGlassTheme.colors.ink,
 ) {
     val c = SoftGlassTheme.colors
     val shape = SoftGlassShapes.card
-    val mutedColor = textColor.copy(alpha = 0.72f)
-    val warmAlpha = if (c.isDark) 0.35f else 0.60f
-    val coolAlpha = if (c.isDark) 0.30f else 0.40f
+    val mutedColor = textColor.copy(alpha = textColor.alpha * 0.8f)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
 
     Column(
         modifier = modifier
             .aspectRatio(CARD_ASPECT_RATIO)
-            .glassSurface(shape = shape, fill = backgroundColor ?: c.glass)
+            .glassSurface(
+                shape = shape,
+                fill = backgroundColor ?: if (pressed) c.glassPressed else c.glass,
+                glow = GlassGlow.Strong,
+            )
             .then(
                 if (onClick != null) {
-                    Modifier.clip(shape).clickable(role = Role.Button, onClick = onClick)
+                    Modifier
+                        .clip(shape)
+                        .clickable(
+                            interactionSource = interaction,
+                            indication = LocalIndication.current,
+                            role = Role.Button,
+                            onClick = onClick,
+                        )
                 } else {
                     Modifier
                 },
             )
-            .drawBehind {
-                drawRect(
-                    Brush.radialGradient(
-                        colors = listOf(c.accentWarmSoft.copy(alpha = warmAlpha), Color.Transparent),
-                        center = Offset(size.width * 0.94f, size.height * 0.10f),
-                        radius = size.width * 0.5f,
-                    ),
-                )
-                drawRect(
-                    Brush.radialGradient(
-                        colors = listOf(c.accentCool.copy(alpha = coolAlpha), Color.Transparent),
-                        center = Offset(size.width * 0.04f, size.height * 0.98f),
-                        radius = size.width * 0.45f,
-                    ),
-                )
-            }
             .fillMaxSize()
-            .padding(20.dp),
+            .padding(horizontal = 24.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Column {
             if (card.company.isNotEmpty()) {
                 Text(
                     text = card.company,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = SoftGlassType.cardCompany,
                     color = textColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -88,7 +84,7 @@ fun BusinessCardView(
             if (card.title.isNotEmpty()) {
                 Text(
                     text = card.title,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = SoftGlassType.body,
                     color = mutedColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -97,8 +93,7 @@ fun BusinessCardView(
         }
         Text(
             text = card.name,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
+            style = SoftGlassType.cardName,
             color = textColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -107,7 +102,7 @@ fun BusinessCardView(
             if (card.phone.isNotEmpty()) {
                 Text(
                     text = card.phone,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = SoftGlassType.body,
                     color = mutedColor,
                     maxLines = 1,
                 )
@@ -115,7 +110,7 @@ fun BusinessCardView(
             if (card.email.isNotEmpty()) {
                 Text(
                     text = card.email,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = SoftGlassType.body,
                     color = mutedColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
