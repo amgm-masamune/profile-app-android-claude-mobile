@@ -6,6 +6,7 @@ import android.graphics.Shader
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -17,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -49,7 +51,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import com.example.businesscard.ui.theme.SoftGlassMotion
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlin.math.max
@@ -79,7 +80,6 @@ internal fun GlassSceneHost(
     val scene = remember { GlassScene() }
     val backdrop = rememberGraphicsLayer()
     scene.backdrop = backdrop
-    val tilt = LocalLightTilt.current
     val shader = remember { RuntimeShader(GlassShaders.WALL) }
     val rects = remember { FloatArray(MAX_ELEMENTS * 4) }
     val props = remember { FloatArray(MAX_ELEMENTS * 4) }
@@ -100,22 +100,36 @@ internal fun GlassSceneHost(
                     props.fill(0f)
                     extra.fill(0f)
                     var n = 0
-                    for (element in scene.elements.values) {
-                        if (n == MAX_ELEMENTS) break
+                    fun put(element: GlassElement, elevationDp: Float, opacity: Float) {
                         val b = element.bounds
-                        if (b.width < 1f || b.height < 1f) continue
                         rects[n * 4] = b.left - origin.x
                         rects[n * 4 + 1] = b.top - origin.y
                         rects[n * 4 + 2] = b.right - origin.x
                         rects[n * 4 + 3] = b.bottom - origin.y
                         props[n * 4] = element.cornerRadius
-                        props[n * 4 + 1] = element.elevationDp
+                        props[n * 4 + 1] = elevationDp
                         props[n * 4 + 2] = element.emit
                         props[n * 4 + 3] = if (element.emitTop) 1f else 0f
-                        extra[n * 4] = element.opacity
+                        extra[n * 4] = opacity
+                        extra[n * 4 + 1] = element.blocking
+                        extra[n * 4 + 2] = if (element.onPlate) 1f else 0f
                         n++
                     }
-                    val light = lightDirection(tilt.value)
+                    val visible = scene.elements.values.filter { it.bounds.width >= 1f && it.bounds.height >= 1f }
+                    val plates = visible.filter { !it.onPlate }
+                    // 先に板。数が足りなければ、板の上に載ったもの(タイル・玉)の影を省く
+                    for (plate in plates) {
+                        if (n == MAX_ELEMENTS) break
+                        put(plate, plate.elevationDp, plate.opacity)
+                    }
+                    for (item in visible) {
+                        if (n == MAX_ELEMENTS) break
+                        if (!item.onPlate) continue
+                        // 載っている板(中心を含む板)の高さと見えている度合いを引き継ぐ
+                        val plate = plates.firstOrNull { it.bounds.contains(item.bounds.center) } ?: continue
+                        put(item, plate.elevationDp + item.elevationDp, plate.opacity * item.opacity)
+                    }
+                    val light = LIGHT_DIRECTION
                     shader.setFloatUniform("size", w, h)
                     shader.setFloatUniform("dp", density)
                     shader.setIntUniform("count", n)
@@ -176,7 +190,6 @@ internal fun Modifier.floatingGlass(
     val scene = LocalGlassScene.current
         ?: return insetGlass(shape, tint, emit, emitTop, rim, rimWidth, lightColor, press)
     val hdr = LocalGlowHeadroom.current
-    val tilt = LocalLightTilt.current
     val localDensity = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val context = LocalContext.current
@@ -193,7 +206,9 @@ internal fun Modifier.floatingGlass(
         if (lift.value < 1f) {
             val y = snapshotFlow { positionInRoot }.filterNotNull().first().y - scene.origin.y
             val fraction = (y / max(scene.size.height, 1f)).coerceIn(0f, 1f)
-            delay((fraction * SoftGlassMotion.ENTRANCE_STAGGER_MILLIS).toLong())
+            // 待つのも画面の描き替え(フレーム)の時計で数える。テストが時計を進めて撮るとき、
+            // 待っている間も「動きの途中」と分かり、浮き上がりきるまで待ってから撮れる
+            awaitFrameMillis((fraction * SoftGlassMotion.ENTRANCE_STAGGER_MILLIS).toLong())
             lift.animateTo(1f, SoftGlassMotion.entranceSpring)
         }
     }
@@ -210,8 +225,10 @@ internal fun Modifier.floatingGlass(
     val nearness = (elevationNow / elevation.value.coerceAtLeast(1f)).coerceIn(0.05f, 1f)
     val emitOnWall = emitNow * nearness * kotlin.math.sqrt(nearness)
     val opacity = (liftNow * 2.5f).coerceIn(0f, 1f)
+    val blocking = plateBlocking(tint)
     val currentEmit by rememberUpdatedState(emitOnWall)
     val currentOpacity by rememberUpdatedState(opacity)
+    val currentBlocking by rememberUpdatedState(blocking)
     val currentElevation by rememberUpdatedState(elevationNow)
     val currentEmitTop by rememberUpdatedState(emitTop)
 
@@ -224,7 +241,8 @@ internal fun Modifier.floatingGlass(
         if (current != null &&
             (
                 current.emit != emitOnWall || current.emitTop != emitTop ||
-                    current.elevationDp != elevationNow || current.opacity != opacity
+                    current.elevationDp != elevationNow || current.opacity != opacity ||
+                    current.blocking != blocking
                 )
         ) {
             scene.elements[key] = current.copy(
@@ -232,6 +250,7 @@ internal fun Modifier.floatingGlass(
                 emitTop = emitTop,
                 elevationDp = elevationNow,
                 opacity = opacity,
+                blocking = blocking,
             )
         }
     }
@@ -253,6 +272,7 @@ internal fun Modifier.floatingGlass(
                 emit = currentEmit,
                 emitTop = currentEmitTop,
                 opacity = currentOpacity,
+                blocking = currentBlocking,
             )
             if (scene.elements[key] != element) scene.elements[key] = element
         }
@@ -264,7 +284,7 @@ internal fun Modifier.floatingGlass(
             val w = size.width
             val h = size.height
             val radius = shape.cornerRadius(size, layoutDirection, this)
-            val light = lightDirection(tilt.value)
+            val light = LIGHT_DIRECTION
 
             // 自分の後ろの壁(と周り)を写し取る
             layer.record(IntSize(w.roundToInt() + 2 * m, h.roundToInt() + 2 * m)) {
@@ -306,14 +326,14 @@ internal fun Modifier.insetGlass(
     press: GlassPress? = null,
 ): Modifier {
     val hdr = LocalGlowHeadroom.current
-    val tilt = LocalLightTilt.current
     val tileShader = remember { RuntimeShader(GlassShaders.TILE) }
     val lightShader = remember { RuntimeShader(GlassShaders.LIGHT) }
     val depth = press?.depth?.value ?: 0f
     val emitNow = emit + (SoftGlassMotion.PRESSED_GLOW - emit) * depth.coerceIn(0f, 1f) * if (emit > 0f) 1f else 0f
-    return drawBehind {
+    // 白い膜は光を散らすので、板の影の中にもう一段濃い影を落とす(タイルが滑れば影も滑る)
+    return castShadowOnPlate(shape, blocking = TILE_BLOCKING_PER_ALPHA * fill.alpha, liftDp = 0f).drawBehind {
         val radius = shape.cornerRadius(size, layoutDirection, this)
-        val light = lightDirection(tilt.value)
+        val light = LIGHT_DIRECTION
         tileShader.setFloatUniform("size", size.width, size.height)
         tileShader.setFloatUniform("radius", radius)
         tileShader.setFloatUniform("dp", density)
@@ -346,11 +366,11 @@ internal fun Modifier.touchLight(shape: Shape, lightColor: Color, press: GlassPr
 @Composable
 internal fun Modifier.glowingBall(top: Color, bottom: Color, lightColor: Color, intensity: Float = 1f): Modifier {
     val hdr = LocalGlowHeadroom.current
-    val tilt = LocalLightTilt.current
     val body = remember { RuntimeShader(GlassShaders.BALL) }
     val halo = remember { RuntimeShader(GlassShaders.BALL) }
-    return drawBehind {
-        val light = lightDirection(tilt.value)
+    // 玉は光を通さないので、板の影の中に丸い濃い影を落とす。玉が動けば影も動く
+    return castShadowOnPlate(CircleShape, blocking = BALL_BLOCKING, liftDp = BALL_LIFT_DP).drawBehind {
+        val light = LIGHT_DIRECTION
         fun RuntimeShader.setUp(mode: Float) {
             setFloatUniform("size", size.width, size.height)
             setFloatUniform("dp", density)
@@ -371,6 +391,52 @@ internal fun Modifier.glowingBall(top: Color, bottom: Color, lightColor: Color, 
             size = Size(size.width + 2 * g, size.height + 2 * g),
             blendMode = BlendMode.Plus,
         )
+    }
+}
+
+/** すりガラスの板が光を遮る強さ。混ぜる白(曇り)が強い板ほど暗い影になり、透明に近い板は輪郭だけが濃い影になる。 */
+internal fun plateBlocking(tint: Color): Float = (0.5f + 0.8f * tint.alpha).coerceIn(0.5f, 0.85f)
+
+/** 白いタイルが、板の影の中でさらに光を遮る強さ(膜の濃さ 1 あたり)。 */
+private const val TILE_BLOCKING_PER_ALPHA = 0.8f
+
+/** つまみの玉が光を遮る強さ。玉は光を通さない。 */
+private const val BALL_BLOCKING = 0.85f
+
+/** つまみの玉が板の面から手前へ出ている分(dp)。 */
+private const val BALL_LIFT_DP = 2f
+
+/**
+ * 板の上に載ったもの(白いタイル・つまみの玉)の形を場に登録する。壁は、板の影の中にこの形の濃い影を描く。
+ * 高さと見えている度合いは、載っている板のものを使う(壁の側で、中心を含む板を探す)。
+ */
+@Composable
+private fun Modifier.castShadowOnPlate(shape: Shape, blocking: Float, liftDp: Float): Modifier {
+    val scene = LocalGlassScene.current ?: return this
+    val key = remember { Any() }
+    val layoutDirection = LocalLayoutDirection.current
+    val localDensity = LocalDensity.current
+    val currentBlocking by rememberUpdatedState(blocking)
+    DisposableEffect(scene, key) {
+        onDispose { scene.elements.remove(key) }
+    }
+    SideEffect {
+        val current = scene.elements[key]
+        if (current != null && current.blocking != blocking) {
+            scene.elements[key] = current.copy(blocking = blocking)
+        }
+    }
+    return onGloballyPositioned { coordinates ->
+        val element = GlassElement(
+            bounds = coordinates.boundsInRoot(),
+            cornerRadius = shape.cornerRadius(coordinates.size.toSize(), layoutDirection, localDensity),
+            elevationDp = liftDp,
+            emit = 0f,
+            emitTop = false,
+            blocking = currentBlocking,
+            onPlate = true,
+        )
+        if (scene.elements[key] != element) scene.elements[key] = element
     }
 }
 
@@ -413,3 +479,12 @@ private fun Shape.cornerRadius(size: Size, layoutDirection: LayoutDirection, den
         is Outline.Rounded -> outline.roundRect.topLeftCornerRadius.x
         else -> 0f
     }
+
+/** フレームの時計で [millis] だけ待つ(コルーチンの delay は実時間なので、テストの時計と合わない)。 */
+private suspend fun awaitFrameMillis(millis: Long) {
+    if (millis <= 0L) return
+    val start = withFrameMillis { it }
+    while (withFrameMillis { it } - start < millis) {
+        // 次のフレームまで待つ
+    }
+}

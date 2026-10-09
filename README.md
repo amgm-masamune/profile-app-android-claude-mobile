@@ -54,7 +54,7 @@ com.example.businesscard
 
 ### 見た目の切り替え
 
-見た目は2種類あり、一覧の右上のボタンから切り替える(選んだ見た目は DataStore に保存)。
+見た目は2種類あり、一覧の右上のボタンから切り替える(選んだ見た目は DataStore に保存)。初めて開いたときは Edgelit(`ThemeStyle.DEFAULT`)。
 
 | 見た目 | 中身 | 描き方 |
 |---|---|---|

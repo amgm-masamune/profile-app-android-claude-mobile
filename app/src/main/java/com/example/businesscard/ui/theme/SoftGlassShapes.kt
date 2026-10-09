@@ -48,8 +48,11 @@ object SoftGlassLight {
      */
     val elevation = 24.dp
 
-    /** すりガラスが背後をぼかす強さ(RenderEffect のぼかし半径) */
-    val frostBlur = 18.dp
+    /**
+     * すりガラスが背後をぼかす強さ(RenderEffect のぼかし半径)。
+     * 見本は背後がうっすら透ける程度なので弱め(18dp では曇りすぎた)
+     */
+    val frostBlur = 10.dp
 }
 
 /** 余白トークン(4dpグリッド)。 */

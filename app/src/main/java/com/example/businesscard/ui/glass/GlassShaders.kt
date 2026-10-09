@@ -64,15 +64,17 @@ float3 toDisplay(float3 c) {
     return float3(fromLinearSrgb(half3(c)));
 }
 
-// 部屋のキーライトの向き(lightDir)は uniform で受け取る。ふだんは左上・手前から差し(影は右下へ落ちる)、
-// 端末を傾けると少し動く
+// 部屋のキーライトの向き(lightDir)は uniform で受け取る。左上・手前から差す(影は右下へ落ちる)
 """
 
     /**
      * 壁。部屋の光で壁を照らし、各部品の影と、各部品の光源が壁を照らす量を計算する。
      *
      * - 環境光: 部屋全体からの柔らかい光。部品の近くでは少し遮られる(アンビエントオクルージョン)
-     * - キーライト: 左上からの光。部品(すりガラスなので3割は透ける)が右下に柔らかい影を落とす
+     * - キーライト: 左上からの光。部品が右下に柔らかい影を落とす。ガラスの影なので一様な黒い形ではなく、
+ *   すりガラスの面は光を通して明るく(曇りが強い板ほど暗く)、厚い縁は光を曲げて逃がすので輪郭が濃い。
+ *   縁がレンズのように集めた光が、影の縁の少し内側に明るい線を作る(コースティクス)。
+ *   板の上に載ったもの(つまみの玉・白いタイル)は、板の影の中にさらに濃い影を落とし、動けば影も動く
      * - 日差し: 斜めに差し込む帯状の光。影は少しくっきりする
      * - 部品の光源: 下端(または上端)に沿った線状の光源。距離の2乗で弱まり、壁に斜めに当たるほど弱まる
      */
@@ -82,14 +84,24 @@ uniform float dp;
 uniform int count;
 uniform float4 rects[16];
 uniform float4 props[16];
+// x: 見えている度合い 0..1、y: 光を遮る強さ 0..1、z: 1 = 板の上に載ったもの(つまみ・タイル)
 uniform float4 extra[16];
 layout(color) uniform half4 albedoTop;
 layout(color) uniform half4 albedoBottom;
 layout(color) uniform half4 lightColor;
 uniform float3 lightDir;
 
-const float GLASS_T = 0.08;
-const float EMIT_GAIN = 9.0;
+// 板の厚い縁が光を遮る強さ(縁は光を曲げて外へ逃がすので、影の輪郭は濃い)
+const float RIM_OCCLUSION = 0.9;
+// 影の中で縁の濃さが届く幅(dp)
+const float RIM_SHADOW = 5.0;
+// 縁が集めた光の明るい線: 強さ・影の縁からの距離(dp)・幅(dp)
+const float CAUSTIC = 0.06;
+const float CAUSTIC_AT = 7.0;
+const float CAUSTIC_W = 2.2;
+// 部屋の中で跳ね返ってくる光(環境光)が、壁の色にどれだけ染まっているか
+const float BOUNCE = 0.6;
+const float EMIT_GAIN = 8.0;
 
 // 線光源(部品の光る辺)が壁の点 xy を照らす量。光源の上を13点で数値積分する
 // (光源は壁から elev 離れているので、点の間隔より遠く、粒にならない)
@@ -134,6 +146,7 @@ half4 main(float2 xy) {
 
     float keyVis = 1.0;
     float sunVis = 1.0;
+    float caustic = 0.0;
     float ao = 1.0;
     float emitted = 0.0;
     for (int i = 0; i < 16; i++) {
@@ -144,6 +157,8 @@ half4 main(float2 xy) {
         float4 pr = props[i];
         // 部品の見えている度合い(登場の途中は薄い)。見えていない板は影も落とさない
         float opacity = extra[i].x;
+        float density = extra[i].y;
+        bool onPlate = extra[i].z > 0.5;
         float2 halfS = (r.zw - r.xy) * 0.5;
         float2 ctr = (r.xy + r.zw) * 0.5;
         float rad = min(pr.x, min(halfS.x, halfS.y));
@@ -158,21 +173,40 @@ half4 main(float2 xy) {
         // 影: 部品の形を光と逆向きにずらし、壁からの距離に比例してぼかす
         float sdShadow = sdRoundRect(xy - ctr - shadowDir * elev, halfS, rad);
         float penKey = 0.15 * elev + dp;
-        keyVis *= 1.0 - (1.0 - smoothstep(-penKey, penKey, sdShadow)) * (1.0 - GLASS_T) * opacity;
+        float coverKey = 1.0 - smoothstep(-penKey, penKey, sdShadow);
         float penSun = 0.08 * elev + dp;
-        sunVis *= 1.0 - (1.0 - smoothstep(-penSun, penSun, sdShadow)) * (1.0 - GLASS_T) * opacity;
-        // 部品のすぐ近くは環境光が届きにくい
-        float sd = sdRoundRect(xy - ctr, halfS, rad);
-        ao *= 1.0 - 0.28 * fade * opacity * exp(-max(sd, 0.0) / (0.8 * elev + dp));
-        if (pr.z > 0.0) {
-            emitted += fade * pr.z * emittedLight(xy, r, elev, pr.w);
+        float coverSun = 1.0 - smoothstep(-penSun, penSun, sdShadow);
+        float occlusion = density;
+        if (!onPlate) {
+            // ガラスの板の影: 面はすりガラスを通った光で明るく、厚い縁の所は濃い
+            float inside = max(-sdShadow, 0.0);
+            float rim = exp(-inside / (RIM_SHADOW * dp + 0.5 * penKey));
+            occlusion = mix(density, RIM_OCCLUSION, rim);
+            // 縁がレンズのように集めた光の、明るい線
+            float c = (inside - CAUSTIC_AT * dp) / (CAUSTIC_W * dp + 0.4 * penKey);
+            caustic += CAUSTIC * coverKey * opacity * exp(-c * c);
+        }
+        keyVis *= 1.0 - coverKey * occlusion * opacity;
+        sunVis *= 1.0 - coverSun * occlusion * opacity;
+        if (!onPlate) {
+            // 部品のすぐ近くは環境光が届きにくい(透けている板ほど弱い)
+            float sd = sdRoundRect(xy - ctr, halfS, rad);
+            ao *= 1.0 - 0.28 * min(density * 2.0, 1.0) * fade * opacity * exp(-max(sd, 0.0) / (0.8 * elev + dp));
+            if (pr.z > 0.0) {
+                emitted += fade * pr.z * emittedLight(xy, r, elev, pr.w);
+            }
         }
     }
 
     float ambient = 0.38 * (1.0 - 0.55 * corner) * ao;
-    float key = 0.62 * (1.0 - 0.45 * corner) * keyVis;
+    // 縁が集めた光(コースティクス)は、縁で曲げられたキーライトなので、遮られた光とは別に足す
+    float key = 0.62 * (1.0 - 0.45 * corner) * (keyVis + caustic);
     float sun = 0.45 * beam * sunVis;
-    float3 col = albedo * (float3(ambient + key + sun) + toLin(lightColor) * emitted);
+    // 環境光はベージュの壁や床で跳ね返ってきた光なので、壁の色に染まっている。
+    // 影の中はこの光だけで照らされるので、影は灰色や青みではなく、壁より濃いベージュになる
+    float3 bounce = albedo / max(dot(albedo, float3(0.2126, 0.7152, 0.0722)), 1e-4);
+    float3 ambientColor = mix(float3(1.0), bounce, BOUNCE);
+    float3 col = albedo * (ambientColor * ambient + float3(key + sun) + toLin(lightColor) * emitted);
     float3 outc = toDisplay(toneMap(col)) + (hash12(xy) - 0.5) / 170.0;
     return half4(half3(outc), 1.0);
 }

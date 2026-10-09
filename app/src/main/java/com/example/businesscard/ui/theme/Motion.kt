@@ -52,7 +52,4 @@ object SoftGlassMotion {
 
     /** 光源の強さ・浮く高さが変わるときの時間(フォーカスやトグルで点く・消える) */
     const val GLOW_CHANGE_MILLIS = 220
-
-    /** 端末の傾きで光の向きが動く量 */
-    const val TILT_LIGHT = 0.35f
 }

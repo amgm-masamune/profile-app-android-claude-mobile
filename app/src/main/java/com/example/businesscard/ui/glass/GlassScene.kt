@@ -42,6 +42,16 @@ internal data class GlassElement(
     val emitTop: Boolean,
     /** 見えている度合い 0..1(登場の途中は薄い。見えていない板は影を落とさない) */
     val opacity: Float = 1f,
+    /**
+     * 光を遮る強さ 0..1。すりガラスの板は曇り(混ぜる白)が強いほど強い。
+     * 板の上に載ったものは、板の影の中でさらに遮る強さ
+     */
+    val blocking: Float = 0.5f,
+    /**
+     * 板の上に載ったもの(白いタイル・つまみの玉)か。載っている板の高さ・見えている度合いを引き継ぎ、
+     * [elevationDp] は板からさらに浮いている分になる。光源・環境光の遮りは持たない
+     */
+    val onPlate: Boolean = false,
 )
 
 /**

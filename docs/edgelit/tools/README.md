@@ -5,10 +5,12 @@
 
 ```
 pip install skia-python
-# 01〜11 の図(<DEV> は screenshots ブランチの画像を置いたフォルダ)
+# 01〜12 の図(<DEV> は screenshots ブランチの画像を置いたフォルダ)
 python3 docs/edgelit/tools/plates.py  docs/edgelit/tools docs/edgelit
 python3 docs/edgelit/tools/plates2.py docs/edgelit/tools docs/edgelit <DEV>
 python3 docs/edgelit/tools/plates3.py docs/edgelit/tools docs/edgelit <DEV>
+# 13 ガラスの影のしくみ(DEV の interactions.gif からスイッチのコマを使う)
+python3 docs/edgelit/tools/plates4.py docs/edgelit/tools docs/edgelit <DEV>
 ```
 
 文字は Noto Sans CJK JP を使う。

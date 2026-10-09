@@ -15,7 +15,7 @@ enum class ThemeStyle {
     ;
 
     companion object {
-        /** まだ選んでいないときの見た目 */
-        val DEFAULT = PORCELAIN
+        /** まだ選んでいないときの見た目(2026-10-10 決定: これまでの main と同じ Edgelit) */
+        val DEFAULT = EDGELIT
     }
 }
