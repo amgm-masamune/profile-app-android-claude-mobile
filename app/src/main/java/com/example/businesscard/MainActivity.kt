@@ -1,6 +1,5 @@
 package com.example.businesscard
 
-import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -36,17 +35,15 @@ class MainActivity : ComponentActivity() {
             val style = (uiState as? MainActivityUiState.Ready)?.themeStyle
             if (style != null) {
                 val edgelit = style == ThemeStyle.EDGELIT
-                // 見た目に合わせて、ステータスバー・ナビゲーションバーのアイコンの色を変える。
-                // HDR の窓は Edgelit の光源のためだけに使うので、ほかの見た目では元に戻す
+                // 見た目に合わせて、ステータスバー・ナビゲーションバーのアイコンの色を変える
                 DisposableEffect(style) {
                     applySystemBars(style)
-                    if (!edgelit) window.colorMode = ActivityInfo.COLOR_MODE_DEFAULT
                     onDispose {}
                 }
 
-                // Edgelit だけ: HDR対応の画面では光源を白より明るく光らせる。端末を傾けると部屋の光の向きが少し動く
-                // (ほかの見た目では傾きのセンサーを使わない)
-                val headroom = if (edgelit) rememberGlowHeadroom(this) else 1f
+                // HDR対応の画面では、光源(Edgelit の縁の光・Porcelain の波の裏の光)を白より明るく光らせる。
+                // Edgelit だけ: 端末を傾けると部屋の光の向きが少し動く(ほかの見た目では傾きのセンサーを使わない)
+                val headroom = rememberGlowHeadroom(this)
                 val tilt = if (edgelit) rememberLightTilt() else LocalLightTilt.current
                 CompositionLocalProvider(
                     LocalGlowHeadroom provides headroom,

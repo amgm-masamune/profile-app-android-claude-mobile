@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -31,9 +32,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
+import com.example.businesscard.ui.glass.LocalGlowHeadroom
 import com.example.businesscard.ui.glass.prefersReducedMotion
 import android.graphics.Paint as NativePaint
 
@@ -51,10 +56,12 @@ sealed interface WavePlacement {
 
 /**
  * 画面の背景。グレーの壁の前に明るい板(パネル)が浮き、右下へ長い影を落とす。
- * 板の中ほどを波打つ薄い板が横切り、その縁の向こうから暖かい光がにじむ(AGSL で計算して描く)。
+ * 板の中ほどを波打つ薄い板が横切り、その縁の裏に隠れた帯状の光源が、奥の面を照らす(光の量を AGSL で計算して描く)。
  *
+ * 板の上の部品は [LocalPorcelainLight] でこの光源を知り、光源のほうを向いた縁が照らされる。
  * 板はシステムバーとキーボードを避けて置く(中の部品は改めて避けなくてよい)。
- * 画面を開くと、縁の光がゆっくり灯る(「アニメーションを削除」設定では最初から灯っている)。
+ * 画面を開くと、光源がゆっくり灯る(「アニメーションを削除」設定では最初から灯っている)。
+ * HDR 対応の画面では、光の芯が白より明るく光る(明るさの余裕は [LocalGlowHeadroom])。
  */
 @Composable
 fun PorcelainBackground(
@@ -68,6 +75,7 @@ fun PorcelainBackground(
     LaunchedEffect(Unit) {
         glow.animateTo(1f, tween(PorcelainMotion.GLOW_IN_MILLIS, easing = FastOutSlowInEasing))
     }
+    val field = remember(wave) { PorcelainLightField(wave) { glow.value } }
 
     Box(
         modifier = modifier
@@ -84,9 +92,16 @@ fun PorcelainBackground(
                     end = PorcelainSpacing.panelEnd,
                     bottom = PorcelainSpacing.panelBottom,
                 )
-                .porcelainPanel(wave = wave, glow = { glow.value }),
-            content = content,
-        )
+                .onGloballyPositioned {
+                    field.origin = it.positionInRoot()
+                    field.size = it.size.toSize()
+                }
+                .porcelainPanel(field),
+        ) {
+            CompositionLocalProvider(LocalPorcelainLight provides field) {
+                content()
+            }
+        }
     }
 }
 
@@ -113,10 +128,11 @@ fun PorcelainScaffold(
     }
 }
 
-/** 板(パネル)を描く: 壁へ落ちる影 → 面(波と光のシェーダー) → 縁のつや。中身は板の形で切り抜かない(影が切れないように)。 */
+/** 板(パネル)を描く: 壁へ落ちる影 → 面(光の計算をするシェーダー) → 縁のつや。中身は板の形で切り抜かない(影が切れないように)。 */
 @Composable
-private fun Modifier.porcelainPanel(wave: WavePlacement, glow: () -> Float): Modifier {
+private fun Modifier.porcelainPanel(field: PorcelainLightField): Modifier {
     val c = PorcelainTheme.colors
+    val hdr = LocalGlowHeadroom.current
     val shader = remember { RuntimeShader(PorcelainShaders.PANEL) }
     val e = PorcelainElevation.Panel
     return this.drawWithCache {
@@ -136,21 +152,10 @@ private fun Modifier.porcelainPanel(wave: WavePlacement, glow: () -> Float): Mod
             color = Color.White.copy(alpha = e.lightAlpha).toArgb()
         }
 
-        // 波の縁: 高低差は板の短い辺に比例(見本の比率)。縁のいちばん低い所の位置は画面ごとに決める
-        val amp = minOf(size.width, size.height) * PorcelainLight.WAVE_AMPLITUDE
-        val lowest = when (wave) {
-            is WavePlacement.AboveBottom -> size.height - wave.lift.toPx()
-            is WavePlacement.BelowTop -> wave.offset.toPx()
-        }
-        shader.setFloatUniform("size", size.width, size.height)
-        shader.setFloatUniform("dp", density)
-        shader.setFloatUniform("waveTop", lowest - amp)
-        shader.setFloatUniform("waveAmp", amp)
+        val wave = waveGeometry(size, field.wave, this)
         shader.setColorUniform("panelTop", c.panelTop.toArgb())
         shader.setColorUniform("panelBottom", c.panelBottom.toArgb())
-        shader.setColorUniform("glowCore", c.glowCore.toArgb())
-        shader.setColorUniform("glowWarm", c.glowWarm.toArgb())
-        shader.setColorUniform("sheetTint", c.sheetTint.toArgb())
+        shader.setColorUniform("sheetFilter", c.sheetFilter.toArgb())
         val brush = ShaderBrush(shader)
         val rimWidth = 1.5.dp.toPx()
         val rim = Brush.linearGradient(
@@ -167,7 +172,7 @@ private fun Modifier.porcelainPanel(wave: WavePlacement, glow: () -> Float): Mod
                 nc.save(); nc.translate(e.dropDx.toPx(), e.dropDy.toPx()); nc.drawPath(native, drop); nc.restore()
                 nc.save(); nc.translate(0f, e.contactDy.toPx()); nc.drawPath(native, contact); nc.restore()
             }
-            shader.setFloatUniform("glow", glow())
+            shader.setLightRig(size, wave, density, field.glow, hdr, c)
             drawPath(path, brush)
             drawPath(path, rim, style = Stroke(rimWidth))
         }

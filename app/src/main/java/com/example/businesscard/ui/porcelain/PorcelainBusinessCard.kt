@@ -43,7 +43,13 @@ fun PorcelainBusinessCard(
     Column(
         modifier = modifier
             .aspectRatio(CARD_ASPECT_RATIO)
-            .porcelainSurface(shape = shape, tone = PorcelainTone.Light, elevation = PorcelainElevation.Card, pressed = press)
+            .porcelainSurface(
+                shape = shape,
+                tone = PorcelainTone.Light,
+                elevation = PorcelainElevation.Card,
+                pressed = press,
+                bevel = PorcelainRelief.cardBevel,
+            )
             .then(
                 if (onClick != null) {
                     Modifier
