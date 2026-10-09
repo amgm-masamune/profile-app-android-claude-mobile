@@ -395,7 +395,7 @@ internal fun Modifier.glowingBall(top: Color, bottom: Color, lightColor: Color, 
 }
 
 /** すりガラスの板が光を遮る強さ。混ぜる白(曇り)が強い板ほど暗い影になり、透明に近い板は輪郭だけが濃い影になる。 */
-internal fun plateBlocking(tint: Color): Float = (0.35f + 0.8f * tint.alpha).coerceIn(0.35f, 0.8f)
+internal fun plateBlocking(tint: Color): Float = (0.5f + 0.8f * tint.alpha).coerceIn(0.5f, 0.85f)
 
 /** 白いタイルが、板の影の中でさらに光を遮る強さ(膜の濃さ 1 あたり)。 */
 private const val TILE_BLOCKING_PER_ALPHA = 0.8f

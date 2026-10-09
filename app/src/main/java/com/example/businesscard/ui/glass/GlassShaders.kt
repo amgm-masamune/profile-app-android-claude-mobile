@@ -96,12 +96,12 @@ const float RIM_OCCLUSION = 0.9;
 // 影の中で縁の濃さが届く幅(dp)
 const float RIM_SHADOW = 5.0;
 // 縁が集めた光の明るい線: 強さ・影の縁からの距離(dp)・幅(dp)
-const float CAUSTIC = 0.14;
+const float CAUSTIC = 0.06;
 const float CAUSTIC_AT = 7.0;
 const float CAUSTIC_W = 2.2;
 // 部屋の中で跳ね返ってくる光(環境光)が、壁の色にどれだけ染まっているか
 const float BOUNCE = 0.6;
-const float EMIT_GAIN = 9.0;
+const float EMIT_GAIN = 8.0;
 
 // 線光源(部品の光る辺)が壁の点 xy を照らす量。光源の上を13点で数値積分する
 // (光源は壁から elev 離れているので、点の間隔より遠く、粒にならない)
