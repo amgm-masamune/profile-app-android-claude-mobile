@@ -2,7 +2,7 @@
 アプリの Modifier.porcelainSurface(PorcelainSurface.kt)と同じ手順・同じ値で描く。"""
 import skia
 
-from porcelain import argb, sigma, surface_shader
+from porcelain import argb, sigma
 
 # PorcelainTokens.kt の PorcelainElevation と同じ値(dp)
 RAISED = dict(
@@ -11,11 +11,6 @@ RAISED = dict(
     contact_dy=1.5, contact_blur=2.5, contact_alpha=0.2,
 )
 INSET = dict(dx=1.0, dy=3.0, blur=6.0, alpha=0.26, light_alpha=0.45)
-# PorcelainRelief と同じ値
-CONTROL_BEVEL = 8.0
-CARD_BEVEL = 10.0
-LIGHT_SHEEN = 0.07
-DARK_SHEEN = 0.035
 
 LIGHT_TOP = 0xFFE4E4E4
 LIGHT_BOTTOM = 0xFFDAD9D8
@@ -37,9 +32,8 @@ def blur_paint(color, alpha, blur_px):
     return p
 
 
-def surface(c, x, y, w, h, radius, dp, top, bottom, pressed=0.0, glow=0.0, dark=False, rig=None, bevel=CONTROL_BEVEL):
-    """盛り上がった板。pressed = 0..1(1 = 押し込まれて、外の影が消え、内側に影ができる)、glow = 0..1(縁が暖色に光る)。
-    rig を渡すと、板の光源からの光も受ける(x, y は板の座標)。"""
+def surface(c, x, y, w, h, radius, dp, top, bottom, pressed=0.0, glow=0.0, dark=False):
+    """盛り上がった板。pressed = 0..1(1 = 押し込まれて、外の影が消え、内側に影ができる)、glow = 0..1(縁が暖色に光る)。"""
     rr = rrect(x, y, w, h, radius)
     lift = 1.0 - pressed
     R = RAISED
@@ -57,18 +51,11 @@ def surface(c, x, y, w, h, radius, dp, top, bottom, pressed=0.0, glow=0.0, dark=
         c.save(); c.translate(0, R['contact_dy'] * dp * lift)
         c.drawRRect(rr, blur_paint(0xFF000000, R['contact_alpha'] * lift, R['contact_blur'] * dp))
         c.restore()
-    # 面: 縁の丸みの陰影と、板の光源からの光(アプリと同じシェーダー)
-    if rig is not None:
-        sh = surface_shader(rig, w, h, radius, (x, y), bevel * dp * (1.0 - pressed), top, bottom,
-                            DARK_SHEEN if dark else LIGHT_SHEEN)
-        c.save(); c.translate(x, y)
-        c.drawRect(skia.Rect.MakeWH(w, h), skia.Paint(Shader=sh))
-        c.restore()
-    else:
-        fill = skia.Paint(AntiAlias=True)
-        fill.setShader(skia.GradientShader.MakeLinear(
-            [skia.Point(0, y), skia.Point(0, y + h)], [skia.Color4f(*argb(top)).toColor(), skia.Color4f(*argb(bottom)).toColor()]))
-        c.drawRRect(rr, fill)
+    # 面: 上が明るいグラデーション
+    fill = skia.Paint(AntiAlias=True)
+    fill.setShader(skia.GradientShader.MakeLinear(
+        [skia.Point(0, y), skia.Point(0, y + h)], [skia.Color4f(*argb(top)).toColor(), skia.Color4f(*argb(bottom)).toColor()]))
+    c.drawRRect(rr, fill)
     # 内側の影(押し込まれた分だけ)
     if pressed > 0:
         I = INSET
@@ -82,7 +69,7 @@ def surface(c, x, y, w, h, radius, dp, top, bottom, pressed=0.0, glow=0.0, dark=
         c.restore()
     # 上の縁のつや(1dp)
     rim = skia.Paint(AntiAlias=True, Style=skia.Paint.kStroke_Style, StrokeWidth=1.0 * dp)
-    a_top = (0.12 if dark else 0.45) * (1.0 - 0.7 * pressed)
+    a_top = (0.18 if dark else 0.7) * lift
     rim.setShader(skia.GradientShader.MakeLinear(
         [skia.Point(0, y), skia.Point(0, y + h * 0.55)], [skia.Color4f(1, 1, 1, a_top).toColor(), skia.Color4f(1, 1, 1, 0).toColor()]))
     c.drawRRect(rrect(x + 0.5 * dp, y + 0.5 * dp, w - dp, h - dp, radius - 0.5 * dp), rim)

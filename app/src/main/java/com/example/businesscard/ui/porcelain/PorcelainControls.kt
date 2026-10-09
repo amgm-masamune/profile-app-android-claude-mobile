@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -295,12 +294,7 @@ fun PorcelainMessage(text: String, modifier: Modifier = Modifier) {
         color = PorcelainTheme.colors.inkMuted,
         textAlign = TextAlign.Center,
         modifier = modifier
-            .porcelainSurface(
-                shape = PorcelainShapes.card,
-                tone = PorcelainTone.Light,
-                elevation = PorcelainElevation.Card,
-                bevel = PorcelainRelief.cardBevel,
-            )
+            .porcelainSurface(shape = PorcelainShapes.card, tone = PorcelainTone.Light, elevation = PorcelainElevation.Card)
             .padding(horizontal = 24.dp, vertical = 20.dp),
     )
 }
@@ -333,37 +327,24 @@ fun PorcelainDialog(
     message: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        // ダイアログは別の窓で、板(パネル)の光源から離れているので、光源の光は受けない
-        CompositionLocalProvider(LocalPorcelainLight provides null) {
-            PorcelainDialogPanel(title = title, message = message, content = content)
-        }
-    }
-}
-
-@Composable
-private fun PorcelainDialogPanel(title: String, message: String?, content: @Composable ColumnScope.() -> Unit) {
     val c = PorcelainTheme.colors
-    // 影が窓の外で切れないよう、周りに余白を取る
-    Box(modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 24.dp, bottom = 28.dp)) {
-        Column(
-            modifier = Modifier
-                .widthIn(max = 420.dp)
-                .porcelainSurface(
-                    shape = PorcelainShapes.dialog,
-                    tone = PorcelainTone.Light,
-                    elevation = PorcelainElevation.Dialog,
-                    bevel = PorcelainRelief.cardBevel,
-                )
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(text = title, style = PorcelainType.dialogTitle, color = c.ink)
-            if (message != null) {
-                Text(text = message, style = PorcelainType.body, color = c.inkMuted)
+    Dialog(onDismissRequest = onDismiss) {
+        // 影が窓の外で切れないよう、周りに余白を取る
+        Box(modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 24.dp, bottom = 28.dp)) {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 420.dp)
+                    .porcelainSurface(shape = PorcelainShapes.dialog, tone = PorcelainTone.Light, elevation = PorcelainElevation.Dialog)
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(text = title, style = PorcelainType.dialogTitle, color = c.ink)
+                if (message != null) {
+                    Text(text = message, style = PorcelainType.body, color = c.inkMuted)
+                }
+                Spacer(Modifier.height(4.dp))
+                content()
             }
-            Spacer(Modifier.height(4.dp))
-            content()
         }
     }
 }

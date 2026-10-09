@@ -23,7 +23,7 @@ def load(path=KT):
 
 SRC = load()
 EFFECTS = {}
-for k in ('PANEL', 'SURFACE'):
+for k in ('PANEL',):
     eff = skia.RuntimeEffect.MakeForShader(SRC[k])
     if eff is None:
         raise SystemExit(f'shader {k} did not compile')
@@ -76,7 +76,7 @@ WAVE_AMPLITUDE = 0.233
 
 
 class Rig:
-    """照明の模型(LIGHT_RIG)の値。板と、板の上の部品で共通。"""
+    """照明の模型(LIGHT_RIG)の値。"""
 
     def __init__(self, w, h, dp, wave_top, wave_amp, glow=1.0, hdr=1.0):
         self.w, self.h, self.dp = w, h, dp
@@ -92,11 +92,3 @@ def panel_shader(rig):
     v = rig.values()
     v.update(panelTop=argb(PANEL_TOP), panelBottom=argb(PANEL_BOTTOM), sheetFilter=argb(SHEET_FILTER))
     return shader('PANEL', v)
-
-
-def surface_shader(rig, w, h, radius, origin, bevel, top, bottom, sheen, receive=True):
-    """部品の面。origin は板の座標での部品の左上。"""
-    v = rig.values()
-    v.update(size=[w, h], radius=radius, origin=list(origin), bevel=bevel, receive=1.0 if receive else 0.0,
-             sheen=sheen, topColor=argb(top), bottomColor=argb(bottom))
-    return shader('SURFACE', v)
