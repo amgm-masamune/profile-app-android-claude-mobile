@@ -17,6 +17,20 @@ WALL_TOP = 0xFFAA9B8E; WALL_BOTTOM = 0xFF968677; THUMB_T = 0xFFF7F4F0; THUMB_B =
 
 FONT_JP = 'Noto Sans CJK JP'
 
+# 影の濃さ(アプリの GlassRendering.kt と同じ式・値)
+BALL_DENSITY = 0.85
+BALL_LIFT = 2.0
+
+
+def plate_density(fill):
+    """すりガラスの板が光を遮る強さ。曇り(混ぜる白)が強い板ほど暗い影になる。"""
+    return min(max(0.35 + 0.8 * argb(fill)[3], 0.35), 0.8)
+
+
+def tile_density(fill):
+    """板の上の白いタイルが、板の影の中でさらに光を遮る強さ。"""
+    return 0.8 * argb(fill)[3]
+
 
 def argb(c):
     return [((c >> 16) & 255) / 255, ((c >> 8) & 255) / 255, (c & 255) / 255, ((c >> 24) & 255) / 255]
@@ -67,6 +81,8 @@ class Scene:
         self.d = d
         self.w, self.h = int(w_dp * d), int(h_dp * d)
         self.floating, self.insets, self.texts = [], [], []
+        # 板の上に載ったもの(白いタイル・つまみの玉)。板の影の中に、さらに濃い影を落とす
+        self.overlays = []
 
     def px(self, v):
         return v * self.d
@@ -78,6 +94,15 @@ class Scene:
         if text:
             self.texts.append((text, x + w / 2, y + h / 2 + size * 0.36, size, 700 if bold else 400, 1.0, 'c'))
 
+    def tile(self, x, y, w, h, rad=9, fill=TILE, rim=BORDER, rw=1):
+        """板の上に貼った白いタイル(アプリの GlassLayer.Inset)。"""
+        self.overlays.append(dict(kind='tile', r=(x, y, w, h), rad=rad, fill=fill, rim=rim, rw=rw,
+                                  density=tile_density(fill), lift=0.0))
+
+    def ball(self, x, y, size=26):
+        """スイッチのつまみの玉。"""
+        self.overlays.append(dict(kind='ball', r=(x, y, size, size), rad=size / 2, density=BALL_DENSITY, lift=BALL_LIFT))
+
     def label(self, s, x, y, size=15, weight=500, alpha=1.0, align='l'):
         self.texts.append((s, x, y, size, weight, alpha, align))
 
@@ -86,15 +111,28 @@ class Scene:
         wm = int(round(64 * d))
         els = self.floating if 'shadow' in stages else []
         rects, props, extra = [0.0] * 64, [0.0] * 64, [0.0] * 64
-        for i, e in enumerate(els):
+        n = 0
+        for e in els:
             x, y, w, h = e['r']
-            rects[i * 4:i * 4 + 4] = [x * d, y * d, (x + w) * d, (y + h) * d]
+            rects[n * 4:n * 4 + 4] = [x * d, y * d, (x + w) * d, (y + h) * d]
             emit = e['emit'] * (1 if 'pool' in stages else 0)
             # アプリと同じ: 壁に近づいたぶんだけ照り返しを一部打ち消す(遠ざかるときは打ち消さない)
             near = min(e['elev'] / 24.0, 1.0)
-            props[i * 4:i * 4 + 4] = [e['rad'] * d, e['elev'], emit * near * near ** 0.5, e['top']]
-            extra[i * 4] = 1.0
-        wall = shader('WALL', dict(size=[self.w, self.h], dp=d, count=len(els), rects=rects, props=props, extra=extra,
+            props[n * 4:n * 4 + 4] = [e['rad'] * d, e['elev'], emit * near * near ** 0.5, e['top']]
+            extra[n * 4:n * 4 + 3] = [1.0, plate_density(e['fill']), 0.0]
+            n += 1
+        for o in (self.overlays if 'shadow' in stages else []):
+            x, y, w, h = o['r']
+            cx, cy = x + w / 2, y + h / 2
+            # アプリと同じ: 載っている板(中心を含む板)の高さを使う
+            parent = next((e for e in els if e['r'][0] <= cx <= e['r'][0] + e['r'][2] and e['r'][1] <= cy <= e['r'][1] + e['r'][3]), None)
+            if parent is None:
+                continue
+            rects[n * 4:n * 4 + 4] = [x * d, y * d, (x + w) * d, (y + h) * d]
+            props[n * 4:n * 4 + 4] = [o['rad'] * d, parent['elev'] + o['lift'], 0.0, 0.0]
+            extra[n * 4:n * 4 + 3] = [1.0, o['density'], 1.0]
+            n += 1
+        wall = shader('WALL', dict(size=[self.w, self.h], dp=d, count=n, rects=rects, props=props, extra=extra,
                                    albedoTop=argb(WALL_TOP), albedoBottom=argb(WALL_BOTTOM), lightColor=argb(GLOW), lightDir=light_dir))
         ws = surface(self.w + 2 * wm, self.h + 2 * wm)
         wc = ws.getCanvas(); wc.translate(wm, wm)
@@ -138,6 +176,22 @@ class Scene:
                 oc.save(); oc.translate(x, y)
                 oc.drawRect(skia.Rect.MakeXYWH(-gl, -gl, w + 2 * gl, h + 2 * gl), skia.Paint(Shader=l, BlendMode=skia.BlendMode.kPlus))
                 oc.restore()
+        if 'surface' in stages:
+            for o in self.overlays:
+                x, y, w, h = [v * d for v in o['r']]
+                if o['kind'] == 'tile':
+                    t = shader('TILE', dict(size=[w, h], radius=o['rad'] * d, dp=d, rimWidth=o['rw'] * d, fill=argb(o['fill']),
+                                            rimColor=argb(o['rim']), lightDir=light_dir))
+                    oc.save(); oc.translate(x, y); oc.drawRect(skia.Rect.MakeWH(w, h), skia.Paint(Shader=t)); oc.restore()
+                else:
+                    for mode in (0.0, 1.0):
+                        b = shader('BALL', dict(size=[w, h], dp=d, mode=mode, hdr=1.0, topColor=argb(THUMB_T), bottomColor=argb(THUMB_B),
+                                                lightColor=argb(GLOW), lightDir=light_dir))
+                        g = 24 * d * mode
+                        oc.save(); oc.translate(x, y)
+                        oc.drawRect(skia.Rect.MakeXYWH(-g, -g, w + 2 * g, h + 2 * g),
+                                    skia.Paint(Shader=b, BlendMode=skia.BlendMode.kPlus if mode else skia.BlendMode.kSrcOver))
+                        oc.restore()
         if 'text' in stages:
             for s, x, y, size, weight, alpha, align in self.texts:
                 draw_text(oc, s, x * d, y * d, size * d * 0.95, (1, 1, 1, alpha), weight, align)
