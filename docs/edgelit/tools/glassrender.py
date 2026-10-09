@@ -8,6 +8,8 @@ CS = skia.ColorSpace.MakeSRGB()
 SRC = load()
 EFFECTS = {k: skia.RuntimeEffect.MakeForShader(v) for k, v in SRC.items()}
 LIGHT_DIR = [-0.55, -0.5, 0.6]
+# すりガラスのぼかし(dp)。アプリの SoftGlassLight.frostBlur と同じ値にする
+FROST = 10
 
 GLASS = 0x40DCE1E6; PRESSED = 0x4DFFFFFF; SELECTED = 0x52FFFFFF; TILE = 0x5CFFFFFF
 BORDER = 0x8CFFFFFF; FOCUS = 0xF2FFFFFF; GLOW = 0xFFFFFCF6
@@ -103,7 +105,7 @@ class Scene:
         oc = out.getCanvas()
         oc.drawImage(wall_img, -wm, -wm)
         gm = int(round(40 * d))
-        sigma = 0.57735 * 18 * d + 0.5
+        sigma = 0.57735 * FROST * d + 0.5
         for e in self.floating:
             if 'frost' not in stages:
                 break

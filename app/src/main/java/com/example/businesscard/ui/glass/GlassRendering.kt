@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -49,7 +50,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import com.example.businesscard.ui.theme.SoftGlassMotion
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlin.math.max
@@ -79,7 +79,6 @@ internal fun GlassSceneHost(
     val scene = remember { GlassScene() }
     val backdrop = rememberGraphicsLayer()
     scene.backdrop = backdrop
-    val tilt = LocalLightTilt.current
     val shader = remember { RuntimeShader(GlassShaders.WALL) }
     val rects = remember { FloatArray(MAX_ELEMENTS * 4) }
     val props = remember { FloatArray(MAX_ELEMENTS * 4) }
@@ -115,7 +114,7 @@ internal fun GlassSceneHost(
                         extra[n * 4] = element.opacity
                         n++
                     }
-                    val light = lightDirection(tilt.value)
+                    val light = LIGHT_DIRECTION
                     shader.setFloatUniform("size", w, h)
                     shader.setFloatUniform("dp", density)
                     shader.setIntUniform("count", n)
@@ -176,7 +175,6 @@ internal fun Modifier.floatingGlass(
     val scene = LocalGlassScene.current
         ?: return insetGlass(shape, tint, emit, emitTop, rim, rimWidth, lightColor, press)
     val hdr = LocalGlowHeadroom.current
-    val tilt = LocalLightTilt.current
     val localDensity = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val context = LocalContext.current
@@ -193,7 +191,9 @@ internal fun Modifier.floatingGlass(
         if (lift.value < 1f) {
             val y = snapshotFlow { positionInRoot }.filterNotNull().first().y - scene.origin.y
             val fraction = (y / max(scene.size.height, 1f)).coerceIn(0f, 1f)
-            delay((fraction * SoftGlassMotion.ENTRANCE_STAGGER_MILLIS).toLong())
+            // 待つのも画面の描き替え(フレーム)の時計で数える。テストが時計を進めて撮るとき、
+            // 待っている間も「動きの途中」と分かり、浮き上がりきるまで待ってから撮れる
+            awaitFrameMillis((fraction * SoftGlassMotion.ENTRANCE_STAGGER_MILLIS).toLong())
             lift.animateTo(1f, SoftGlassMotion.entranceSpring)
         }
     }
@@ -264,7 +264,7 @@ internal fun Modifier.floatingGlass(
             val w = size.width
             val h = size.height
             val radius = shape.cornerRadius(size, layoutDirection, this)
-            val light = lightDirection(tilt.value)
+            val light = LIGHT_DIRECTION
 
             // 自分の後ろの壁(と周り)を写し取る
             layer.record(IntSize(w.roundToInt() + 2 * m, h.roundToInt() + 2 * m)) {
@@ -306,14 +306,13 @@ internal fun Modifier.insetGlass(
     press: GlassPress? = null,
 ): Modifier {
     val hdr = LocalGlowHeadroom.current
-    val tilt = LocalLightTilt.current
     val tileShader = remember { RuntimeShader(GlassShaders.TILE) }
     val lightShader = remember { RuntimeShader(GlassShaders.LIGHT) }
     val depth = press?.depth?.value ?: 0f
     val emitNow = emit + (SoftGlassMotion.PRESSED_GLOW - emit) * depth.coerceIn(0f, 1f) * if (emit > 0f) 1f else 0f
     return drawBehind {
         val radius = shape.cornerRadius(size, layoutDirection, this)
-        val light = lightDirection(tilt.value)
+        val light = LIGHT_DIRECTION
         tileShader.setFloatUniform("size", size.width, size.height)
         tileShader.setFloatUniform("radius", radius)
         tileShader.setFloatUniform("dp", density)
@@ -346,11 +345,10 @@ internal fun Modifier.touchLight(shape: Shape, lightColor: Color, press: GlassPr
 @Composable
 internal fun Modifier.glowingBall(top: Color, bottom: Color, lightColor: Color, intensity: Float = 1f): Modifier {
     val hdr = LocalGlowHeadroom.current
-    val tilt = LocalLightTilt.current
     val body = remember { RuntimeShader(GlassShaders.BALL) }
     val halo = remember { RuntimeShader(GlassShaders.BALL) }
     return drawBehind {
-        val light = lightDirection(tilt.value)
+        val light = LIGHT_DIRECTION
         fun RuntimeShader.setUp(mode: Float) {
             setFloatUniform("size", size.width, size.height)
             setFloatUniform("dp", density)
@@ -413,3 +411,12 @@ private fun Shape.cornerRadius(size: Size, layoutDirection: LayoutDirection, den
         is Outline.Rounded -> outline.roundRect.topLeftCornerRadius.x
         else -> 0f
     }
+
+/** フレームの時計で [millis] だけ待つ(コルーチンの delay は実時間なので、テストの時計と合わない)。 */
+private suspend fun awaitFrameMillis(millis: Long) {
+    if (millis <= 0L) return
+    val start = withFrameMillis { it }
+    while (withFrameMillis { it } - start < millis) {
+        // 次のフレームまで待つ
+    }
+}

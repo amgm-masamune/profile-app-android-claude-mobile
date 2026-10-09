@@ -64,8 +64,7 @@ float3 toDisplay(float3 c) {
     return float3(fromLinearSrgb(half3(c)));
 }
 
-// 部屋のキーライトの向き(lightDir)は uniform で受け取る。ふだんは左上・手前から差し(影は右下へ落ちる)、
-// 端末を傾けると少し動く
+// 部屋のキーライトの向き(lightDir)は uniform で受け取る。左上・手前から差す(影は右下へ落ちる)
 """
 
     /**
@@ -88,7 +87,10 @@ layout(color) uniform half4 albedoBottom;
 layout(color) uniform half4 lightColor;
 uniform float3 lightDir;
 
-const float GLASS_T = 0.08;
+// すりガラスが光を通す割合。すりガラスは光をかなり通すので、影は真っ黒にならない
+const float GLASS_T = 0.3;
+// 部屋の中で跳ね返ってくる光(環境光)が、壁の色にどれだけ染まっているか
+const float BOUNCE = 0.6;
 const float EMIT_GAIN = 9.0;
 
 // 線光源(部品の光る辺)が壁の点 xy を照らす量。光源の上を13点で数値積分する
@@ -172,7 +174,11 @@ half4 main(float2 xy) {
     float ambient = 0.38 * (1.0 - 0.55 * corner) * ao;
     float key = 0.62 * (1.0 - 0.45 * corner) * keyVis;
     float sun = 0.45 * beam * sunVis;
-    float3 col = albedo * (float3(ambient + key + sun) + toLin(lightColor) * emitted);
+    // 環境光はベージュの壁や床で跳ね返ってきた光なので、壁の色に染まっている。
+    // 影の中はこの光だけで照らされるので、影は灰色や青みではなく、壁より濃いベージュになる
+    float3 bounce = albedo / max(dot(albedo, float3(0.2126, 0.7152, 0.0722)), 1e-4);
+    float3 ambientColor = mix(float3(1.0), bounce, BOUNCE);
+    float3 col = albedo * (ambientColor * ambient + float3(key + sun) + toLin(lightColor) * emitted);
     float3 outc = toDisplay(toneMap(col)) + (hash12(xy) - 0.5) / 170.0;
     return half4(half3(outc), 1.0);
 }
