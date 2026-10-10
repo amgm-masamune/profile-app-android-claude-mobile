@@ -46,12 +46,17 @@ class ReceiptImageStore @Inject constructor(
             if (isJpeg) {
                 target.writeBytes(bytes)
             } else {
-                val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                var sample = 1
+                while (maxOf(bounds.outWidth, bounds.outHeight) / sample > ReceiptImageCodec.MAX_SIDE * 2) sample *= 2
+                val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+                val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
                     ?: throw java.io.IOException("この画像形式は読み込めませんでした")
                 target.outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 95, it) }
                 bmp.recycle()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             target.delete()
             throw e
         }

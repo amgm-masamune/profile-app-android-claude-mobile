@@ -72,6 +72,9 @@ class ReceiptListViewModel @Inject constructor(
                 store.importFrom(uri)
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: OutOfMemoryError) {
+                _state.update { it.copy(scanning = false, error = "画像が大きすぎて読み込めませんでした") }
+                return@launch
             } catch (e: Exception) {
                 _state.update { it.copy(scanning = false, error = "画像を読み込めませんでした: ${e.message.orEmpty()}") }
                 return@launch

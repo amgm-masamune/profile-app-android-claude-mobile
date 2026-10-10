@@ -97,7 +97,7 @@ class ReceiptParserTest {
         assertNotNull(root)
         val s = root.toString()
         assertTrue(s.contains("\"model\":\"claude-haiku-5-5\""))
-        assertTrue(s.contains("\"max_tokens\":2000"))
+        assertTrue(s.contains("\"max_tokens\":4096"))
         assertTrue(s.contains("\"media_type\":\"image/jpeg\""))
         assertTrue(s.contains("\"data\":\"QUJD\""))
         assertTrue(s.contains("\"type\":\"base64\""))

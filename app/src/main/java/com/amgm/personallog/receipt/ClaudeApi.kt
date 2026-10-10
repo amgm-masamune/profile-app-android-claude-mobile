@@ -22,7 +22,7 @@ class ReceiptApiException(message: String) : Exception(message)
 object ClaudeRequest {
     const val ENDPOINT = "https://api.anthropic.com/v1/messages"
     const val API_VERSION = "2023-06-01"
-    const val MAX_TOKENS = 2000
+    const val MAX_TOKENS = 4096
 
     val PROMPT: String = """
         このレシート画像から情報を抽出し、次の形式のJSONだけを返してください。
