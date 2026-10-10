@@ -2,7 +2,7 @@ name: personal-log
 
 on:
   push:
-    branches: [personal-log-app]
+    branches: [personal-log-app, 'feat/**']
   workflow_dispatch:
 
 permissions:
@@ -39,7 +39,7 @@ jobs:
 
       # 生成されたRoomスキーマJSON(app/schemas)が未コミットならブランチへコミットする
       - name: Commit generated Room schema
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/personal-log-app'
         run: |
           git add app/schemas
           if ! git diff --cached --quiet; then
@@ -75,8 +75,9 @@ jobs:
           name: reports
           path: app/build/reports/tests/
 
+      # 配布(最新APKの置き換え)は本線 personal-log-app のときだけ。feat/** はビルド確認のみ
       - name: Publish pre-release
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.ref == 'refs/heads/personal-log-app'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SHA256: ${{ steps.sig.outputs.sha }}
