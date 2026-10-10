@@ -1,0 +1,91 @@
+name: personal-log
+
+on:
+  push:
+    branches: [personal-log-app]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: personal-log-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests and debug build
+        shell: bash
+        run: ./gradlew testDebugUnitTest assembleDebug --stacktrace 2>&1 | tee build.log
+
+      # 失敗時にエラー要約をannotationとして残す(ログ全文を開かなくても原因が分かる)
+      - name: Summarize failure
+        if: failure()
+        run: |
+          grep -E '^e: |error:|FAILED|What went wrong|Caused by|\[Hilt\]|\[Dagger|\[ksp\]|Execution failed' -A4 build.log | head -80 > summary.txt || true
+          msg=$(sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g' summary.txt | head -c 3500)
+          echo "::error title=Gradle failure::${msg}"
+
+      # 生成されたRoomスキーマJSON(app/schemas)が未コミットならブランチへコミットする
+      - name: Commit generated Room schema
+        if: github.event_name == 'push'
+        run: |
+          git add app/schemas
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m "Add generated Room schema"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+
+      - name: Verify APK signature
+        id: sig
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" verify --print-certs "$APK" | tee sig.txt
+          SHA=$(grep 'certificate SHA-256 digest' sig.txt | head -1 | awk '{print $NF}')
+          VC=$("$BT/aapt2" dump badging "$APK" | grep -o "versionCode='[0-9]*'" | head -1 | grep -o '[0-9]*')
+          VN=$("$BT/aapt2" dump badging "$APK" | grep -o "versionName='[^']*'" | head -1 | cut -d"'" -f2)
+          echo "署名証明書 SHA-256: $SHA / versionCode: $VC / versionName: $VN"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "vc=$VC" >> "$GITHUB_OUTPUT"
+          echo "vn=$VN" >> "$GITHUB_OUTPUT"
+          cp "$APK" personal-log-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: personal-log-debug-apk
+          path: personal-log-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reports
+          path: app/build/reports/tests/
+
+      - name: Publish pre-release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA256: ${{ steps.sig.outputs.sha }}
+          VC: ${{ steps.sig.outputs.vc }}
+          VN: ${{ steps.sig.outputs.vn }}
+        run: |
+          TAG=personal-log-debug-latest
+          gh release delete "$TAG" --cleanup-tag --yes || true
+          NOTES=$(printf '個人記録 debug ビルド\n\n- versionName: %s\n- versionCode: %s\n- コミット: %s\n- 署名証明書 SHA-256: `%s`\n\n署名SHA-256が前回と同じなら上書きインストールできます。' "$VN" "$VC" "$GITHUB_SHA" "$SHA256")
+          gh release create "$TAG" personal-log-debug.apk \
+            --prerelease --target "$GITHUB_SHA" \
+            --title "personal-log debug (latest)" --notes "$NOTES"
